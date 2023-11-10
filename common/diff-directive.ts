@@ -1,9 +1,9 @@
 import { calculateChecksum } from './calculate-checksum';
-import { DIFF_NAME_TAG } from './constants';
+import { DIFF_PATH_TAG } from './constants';
 import { parseTag } from './parse-tag';
 
 /**
- * Represents a Diff Directive, containing information about a diff operation.
+ * Represents a Diff Directive, containing information about the patch.
  */
 interface DiffDirective {
     /**
@@ -20,6 +20,11 @@ interface DiffDirective {
      * The number of lines affected by the diff operation.
      */
     lines: number;
+
+    /**
+     * The timestamp of creating patch in milliseconds.
+     */
+    timestampMS: number;
 }
 
 /**
@@ -37,13 +42,15 @@ export const createDiffDirective = (
     newFilterContent: string,
     patchContent: string,
 ): string => {
-    const diffName = parseTag(DIFF_NAME_TAG, oldFilterContent);
+    const diffPath = parseTag(DIFF_PATH_TAG, oldFilterContent);
+    const [, resourceName] = (diffPath || '').split(':');
     const checksum = calculateChecksum(newFilterContent);
     const lines = patchContent.split('\n').length - 1;
+    const timestampMS = Date.now();
 
-    return diffName
-        ? `diff name:${diffName} checksum:${checksum} lines:${lines}`
-        : `diff checksum:${checksum} lines:${lines}`;
+    return resourceName
+        ? `diff name:${resourceName} checksum:${checksum} lines:${lines} timestamp:${timestampMS}`
+        : `diff checksum:${checksum} lines:${lines} timestamp:${timestampMS}`;
 };
 
 /**
@@ -70,11 +77,13 @@ export const parseDiffDirective = (s: string): DiffDirective | null => {
             name: parts[0].slice('name:'.length),
             checksum: parts[1].slice('checksum:'.length),
             lines: Number(parts[2].slice('lines:'.length)),
+            timestampMS: Number(parts[3].slice('timestamp:'.length)),
         };
     }
 
     return {
         checksum: parts[0].slice('checksum:'.length),
         lines: Number(parts[1].slice('lines:'.length)),
+        timestampMS: Number(parts[2].slice('timestamp:'.length)),
     };
 };
