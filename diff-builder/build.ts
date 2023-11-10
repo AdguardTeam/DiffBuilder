@@ -1,18 +1,14 @@
 import path from 'path';
 import fs from 'fs';
-import crypto from 'crypto';
 
 import * as Diff from 'diff';
 
-const DIFF_NAME_TAG = 'Diff-Name';
-const DIFF_PATH_TAG = 'Diff-Path';
-const DEFAULT_PATCH_TTL_SECONDS = 60 * 60 * 24 * 7;
+import { parseTag } from '../common/parse-tag';
+import { DIFF_PATH_TAG } from '../common/constants';
+import { TypesOfChanges } from '../common/types-of-change';
+import { createDiffDirective } from '../common/diff-directive';
 
-// Type of diff change.
-export enum TypesOfChanges {
-    Add = 'a',
-    Delete = 'd',
-}
+const DEFAULT_PATCH_TTL_SECONDS = 60 * 60 * 24 * 7;
 
 /**
  * Detects type of diff changes: add or delete.
@@ -156,38 +152,6 @@ const createTag = (tagName: string, value: string): string => {
 };
 
 /**
- * Finds value of specified header tag in filter rules text.
- *
- * @param tagName Filter header tag name.
- * @param rules Lines of filter rules text.
- *
- * @returns Value of specified header tag or null if tag not found.
- */
-export const parseTag = (tagName: string, rules: string[]): string | null => {
-    // Lines of filter metadata to parse
-    const AMOUNT_OF_LINES_TO_PARSE = 50;
-
-    // Look up no more than 50 first lines
-    const maxLines = Math.min(AMOUNT_OF_LINES_TO_PARSE, rules.length);
-    for (let i = 0; i < maxLines; i += 1) {
-        const rule = rules[i];
-
-        if (!rule) {
-            continue;
-        }
-
-        const search = `! ${tagName}: `;
-        const indexOfSearch = rule.indexOf(search);
-
-        if (indexOfSearch >= 0) {
-            return rule.substring(indexOfSearch + search.length);
-        }
-    }
-
-    return null;
-};
-
-/**
  * Finds tag by tag name in filter content and if found - updates with provided
  * value, if not - creates new tag and insert to first line of the filter.
  *
@@ -214,39 +178,6 @@ export const findAndUpdateTag = (
     }
 
     return updatedFile;
-};
-
-/**
- * Calculates SHA1 checksum for patch.
- *
- * @param patchContent Content of the patch.
- *
- * @returns SHA1 checksum for patch.
- */
-export const calculateChecksum = (patchContent: string): string => {
-    const hash = crypto.createHash('sha1');
-    const data = hash.update(patchContent, 'utf-8');
-
-    return data.digest('hex');
-};
-
-/**
- * Creates `diff` directive with `Diff-Name` from filter (if found) and with
- * checksum and number of lines of the patch.
- *
- * @param oldFilterContent Filter content.
- * @param patchContent Patch content.
- *
- * @returns Created `diff` directive.
- */
-export const createDiffDirective = (oldFilterContent: string[], patchContent: string): string => {
-    const diffName = parseTag(DIFF_NAME_TAG, oldFilterContent);
-    const checksum = calculateChecksum(patchContent);
-    const lines = patchContent.split('\n').length;
-
-    return diffName
-        ? `diff name:${diffName} checksum:${checksum} lines:${lines}`
-        : `diff checksum:${checksum} lines:${lines}`;
 };
 
 /**
@@ -318,10 +249,10 @@ const deleteOutdatedPatches = async (
  * First verifies the version tags in the old and new filters, ensuring they are
  * present and in the correct order. Then calculates the difference between
  * the old and new filters in [RCS format](https://www.gnu.org/software/diffutils/manual/diffutils.html#RCS).
- * Optionally, calculates a diff directive with the name, checksum, and line
- * count, extracting the name from the `Diff-Name` tag in the old filter.
+ * Optionally, calculates a diff directive with the name, checksum of new filter,
+ * and line count, extracting the name from the `Diff-Name` tag in the old filter.
  * The resulting diff is saved to a patch file with the version number in the
- * specified path. Also updates the `Diff-Path` tag in the old filter.
+ * specified path. Also updates the `Diff-Path` tag in the new filter.
  * Additionally, an empty patch file for the newer version is created.
  * Finally, scans the patch directory and deletes patches with the ".patch"
  * extension that have an mtime older than the specified threshold.
@@ -350,45 +281,40 @@ export const buildDiff = async (
     const newListPath = path.resolve(process.cwd(), newFilterPath);
     const pathToPatches = path.resolve(process.cwd(), patchesPath);
 
-    let oldFile = await fs.promises.readFile(prevListPath, { encoding: 'utf-8' });
+    const oldFile = await fs.promises.readFile(prevListPath, { encoding: 'utf-8' });
     let newFile = await fs.promises.readFile(newListPath, { encoding: 'utf-8' });
 
+    const oldFileSplitted = oldFile.split(/\r?\n/);
     let newFileSplitted = newFile.split(/\r?\n/);
-    let oldFileSplitted = oldFile.split(/\r?\n/);
 
-    const versionOfNewFile = parseTag('Version', newFileSplitted);
     const versionOfOldFile = parseTag('Version', oldFileSplitted);
-
-    if (!versionOfNewFile) {
-        throw new Error(`Not found 'Version' tag in new filter located in the: ${newFile}`);
-    }
+    const versionOfNewFile = parseTag('Version', newFileSplitted);
 
     if (!versionOfOldFile) {
         throw new Error(`Not found 'Version' tag in old filter located in the: ${oldFile}`);
     }
 
+    if (!versionOfNewFile) {
+        throw new Error(`Not found 'Version' tag in new filter located in the: ${newFile}`);
+    }
+
+    // Create folder for patches if it doesn't exists.
+    if (!fs.existsSync(pathToPatches)) {
+        const READ_WRITE_MODE = 0x666;
+        await fs.promises.mkdir(pathToPatches, { mode: READ_WRITE_MODE });
+    }
+
     // Create empty patch for future version if it doesn't exists.
-    if (!fs.existsSync(`${pathToPatches}/${versionOfNewFile}.patch`)) {
-        await fs.promises.writeFile(`${pathToPatches}/${versionOfNewFile}.patch`, '');
+    if (!fs.existsSync(path.join(pathToPatches, `${versionOfNewFile}.patch`))) {
+        await fs.promises.writeFile(
+            path.join(pathToPatches, `${versionOfNewFile}.patch`),
+            '',
+        );
     }
 
     // ! Important: Update `Diff-Path` before calculating the diff to ensure
     // that changing `Diff-Path` will be correctly included in the resulting
     // diff patch.
-    const pathToPatchesRelativeToOldFilter = path.relative(
-        path.dirname(oldFilterPath),
-        pathToPatches,
-    );
-    const endOfOldFile = oldFile.endsWith('\r\n') ? '\r\n' : '\n';
-    // Update `Diff-Path` in the old filter.
-    oldFileSplitted = await updateDiffPathTagInFilter(
-        path.join(pathToPatchesRelativeToOldFilter, `${versionOfOldFile}.patch`),
-        oldFileSplitted,
-        prevListPath,
-        endOfOldFile,
-    );
-    oldFile = oldFileSplitted.join(endOfOldFile);
-
     const pathToPatchesRelativeToNewFilter = path.relative(
         path.dirname(newFilterPath),
         pathToPatches,
@@ -407,12 +333,15 @@ export const buildDiff = async (
 
     // Add checksum to patch if requested
     if (checksum) {
-        const diffDirective = createDiffDirective(oldFileSplitted, patch);
+        const diffDirective = createDiffDirective(oldFileSplitted, newFile, patch);
         patch = diffDirective.concat('\n', patch);
     }
 
     // Save diff to patch file.
-    await fs.promises.writeFile(`${pathToPatches}/${versionOfOldFile}.patch`, patch);
+    await fs.promises.writeFile(
+        path.join(pathToPatches, `${versionOfOldFile}.patch`),
+        patch,
+    );
 
     // Scan patches folder and delete outdated patches.
     await deleteOutdatedPatches(

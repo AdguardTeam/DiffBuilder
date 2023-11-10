@@ -31,8 +31,8 @@ const commonPlugins = [
     cleanup({ comments: ['srcmaps'] }),
 ];
 
-// output as cli
-const cliConfig = defineConfig({
+// Diff-builder cli
+const builderCliConfig = defineConfig({
     input: 'diff-builder/cli.ts',
     output: [
         {
@@ -49,8 +49,8 @@ const cliConfig = defineConfig({
     },
 });
 
-// output as API
-const apiConfig = defineConfig({
+// Diff-builder API
+const builderApiConfig = defineConfig({
     input: 'diff-builder/api.ts',
     output: [
         {
@@ -71,7 +71,33 @@ const apiConfig = defineConfig({
     },
 });
 
+// Diff-updater API
+const updaterApiConfig = defineConfig({
+    input: 'diff-updater/index.ts',
+    output: [
+        {
+            file: 'dist/api/cjs/diff-updater.js',
+            format: 'cjs',
+            sourcemap: false,
+        },
+        {
+            file: 'dist/api/es/diff-updater.js',
+            format: 'esm',
+            sourcemap: false,
+        },
+    ],
+    external: [
+        'crypto',
+        'axios',
+    ],
+    plugins: commonPlugins,
+    watch: {
+        include: 'diff-updater/**',
+    },
+});
+
 export default [
-    cliConfig,
-    apiConfig,
+    builderCliConfig,
+    builderApiConfig,
+    updaterApiConfig,
 ];

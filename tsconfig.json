@@ -14,6 +14,8 @@
   ],
   "include": [
     "diff-builder",
+    "diff-updater",
+    "common",
     "tests",
     "rollup.config.ts",
     ".eslintrc.js",

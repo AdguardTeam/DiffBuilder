@@ -13,6 +13,7 @@
     "node_modules/@types",
   ],
   "include": [
-    "diff-builder/build.ts"
+    "diff-builder/build.ts",
+    "diff-updater/update.ts"
   ]
 }

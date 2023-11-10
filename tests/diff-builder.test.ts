@@ -1,20 +1,32 @@
+import { calculateChecksum } from '../common/calculate-checksum';
+import { createDiffDirective } from '../common/diff-directive';
+import { parseTag } from '../common/parse-tag';
+import { TypesOfChanges } from '../common/types-of-change';
 import {
-    TypesOfChanges,
     detectTypeOfChanges,
     createPatch,
-    createDiffDirective,
-    calculateChecksum,
-    parseTag,
     findAndUpdateTag,
 } from '../diff-builder/build';
 import {
+    FILE_1,
+    FILE_2,
+    FILE_1_2_PATCH,
+    FILE_3,
+    FILE_4,
+    FILE_3_4_PATCH,
     FILTER_2_V_1_0_0,
     FILTER_2_V_1_0_1,
     FILTER_V_1_0_0,
     FILTER_V_1_0_1,
     PATCH_1_0_0,
     PATCH_2_1_0_0,
-} from './mocks';
+    FILE_5_6_PATCH,
+    FILE_5,
+    FILE_6,
+    FILE_7,
+    FILE_7_8_PATCH,
+    FILE_8,
+} from './stubs';
 
 describe('check diff-builder', () => {
     it('check detectTypeOfChanges', () => {
@@ -26,11 +38,11 @@ describe('check diff-builder', () => {
     });
 
     it('check calculateChecksum', () => {
-        const content = PATCH_1_0_0;
+        const content = FILTER_V_1_0_1;
 
         const checksum = calculateChecksum(content);
 
-        expect(checksum).toEqual('b25df92a61db5385bff0cc75f1a4492470f8d415');
+        expect(checksum).toEqual('792ae6af57d3683cc5d81c045a20ea633171b8c0');
     });
 
     it('check parseTag', () => {
@@ -59,22 +71,23 @@ describe('check diff-builder', () => {
     });
 
     describe('check createPatch', () => {
-        it('creates simple patch', () => {
-            const filter1 = FILTER_V_1_0_0;
-            const filter2 = FILTER_V_1_0_1;
+        const cases = [
+            [FILTER_V_1_0_0, FILTER_V_1_0_1, PATCH_1_0_0],
+            [FILTER_2_V_1_0_0, FILTER_2_V_1_0_1, PATCH_2_1_0_0],
+            [FILE_1, FILE_2, FILE_1_2_PATCH],
+            [FILE_3, FILE_4, FILE_3_4_PATCH],
+            [FILE_5, FILE_6, FILE_5_6_PATCH],
+            [FILE_7, FILE_8, FILE_7_8_PATCH],
+        ];
 
+        it.each(cases)('creates patch', (
+            filter1,
+            filter2,
+            expectedPatch,
+        ) => {
             const patch = createPatch(filter1, filter2);
 
-            expect(patch).toEqual(PATCH_1_0_0);
-        });
-
-        it('creates simple patch 2', () => {
-            const filter1 = FILTER_2_V_1_0_0;
-            const filter2 = FILTER_2_V_1_0_1;
-
-            const patch = createPatch(filter1, filter2);
-
-            expect(patch).toEqual(PATCH_2_1_0_0);
+            expect(patch).toEqual(expectedPatch);
         });
 
         it('creates patch with validation', () => {
@@ -83,10 +96,10 @@ describe('check diff-builder', () => {
 
             let patch = createPatch(filter1, filter2);
 
-            const diffDirective = createDiffDirective(filter1.split('\n'), patch);
+            const diffDirective = createDiffDirective(filter1.split('\n'), filter2, patch);
             patch = diffDirective.concat('\n', patch);
 
-            const directive = 'diff checksum:b25df92a61db5385bff0cc75f1a4492470f8d415 lines:5';
+            const directive = 'diff checksum:792ae6af57d3683cc5d81c045a20ea633171b8c0 lines:4';
 
             expect(patch).toEqual(directive.concat('\n').concat(PATCH_1_0_0));
         });
