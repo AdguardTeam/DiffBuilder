@@ -233,8 +233,8 @@ const deleteOutdatedPatches = async (
         // eslint-disable-next-line no-await-in-loop
         const fileStat = await fs.promises.stat(filePath);
 
-        const deleteOlderThanMS = deleteOlderThanSeconds * 1000;
-        const deleteOlderThanDate = new Date(new Date().getTime() - deleteOlderThanMS);
+        const deleteOlderThanMs = deleteOlderThanSeconds * 1000;
+        const deleteOlderThanDate = new Date(new Date().getTime() - deleteOlderThanMs);
 
         if (fileStat.mtime.getTime() < deleteOlderThanDate.getTime()) {
             // eslint-disable-next-line no-await-in-loop

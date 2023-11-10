@@ -24,7 +24,7 @@ interface DiffDirective {
     /**
      * The timestamp of creating patch in milliseconds.
      */
-    timestampMS: number;
+    timestampMs: number;
 }
 
 /**
@@ -46,11 +46,11 @@ export const createDiffDirective = (
     const [, resourceName] = (diffPath || '').split(':');
     const checksum = calculateChecksum(newFilterContent);
     const lines = patchContent.split('\n').length - 1;
-    const timestampMS = Date.now();
+    const timestampMs = Date.now();
 
     return resourceName
-        ? `diff name:${resourceName} checksum:${checksum} lines:${lines} timestamp:${timestampMS}`
-        : `diff checksum:${checksum} lines:${lines} timestamp:${timestampMS}`;
+        ? `diff name:${resourceName} checksum:${checksum} lines:${lines} timestamp:${timestampMs}`
+        : `diff checksum:${checksum} lines:${lines} timestamp:${timestampMs}`;
 };
 
 /**
@@ -77,13 +77,13 @@ export const parseDiffDirective = (s: string): DiffDirective | null => {
             name: parts[0].slice('name:'.length),
             checksum: parts[1].slice('checksum:'.length),
             lines: Number(parts[2].slice('lines:'.length)),
-            timestampMS: Number(parts[3].slice('timestamp:'.length)),
+            timestampMs: Number(parts[3].slice('timestamp:'.length)),
         };
     }
 
     return {
         checksum: parts[0].slice('checksum:'.length),
         lines: Number(parts[1].slice('lines:'.length)),
-        timestampMS: Number(parts[2].slice('timestamp:'.length)),
+        timestampMs: Number(parts[2].slice('timestamp:'.length)),
     };
 };
