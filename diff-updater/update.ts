@@ -5,6 +5,7 @@ import { calculateChecksum } from '../common/calculate-checksum';
 import { DIFF_PATH_TAG } from '../common/constants';
 import { TypesOfChanges } from '../common/types-of-change';
 import { parseDiffDirective } from '../common/diff-directive';
+import { FILTER_3_V_1_0_1 } from '../tests/stubs/name';
 
 /**
  * Represents an RCS (Revision Control System) operation.
