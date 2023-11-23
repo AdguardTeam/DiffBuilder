@@ -2,7 +2,7 @@
 import { Command } from 'commander';
 
 import { buildDiff } from './build';
-import { version } from '../package.json';
+import { version } from '../../package.json';
 
 const program = new Command();
 

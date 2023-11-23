@@ -2,3 +2,4 @@ node_modules/
 test-data/
 dist/
 .eslintcache
+.DS_Store
