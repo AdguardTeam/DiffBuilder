@@ -43,7 +43,7 @@ export const createDiffDirective = (
     patchContent: string,
 ): string => {
     const diffPath = parseTag(DIFF_PATH_TAG, oldFilterContent);
-    const [, resourceName] = (diffPath || '').split(':');
+    const [, resourceName] = (diffPath || '').split('#');
     const checksum = calculateChecksum(newFilterContent);
     const lines = patchContent.split('\n').length - 1;
     const timestampMs = Date.now();

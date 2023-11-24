@@ -10,6 +10,12 @@ import { createDiffDirective } from '../common/diff-directive';
 
 const DEFAULT_PATCH_TTL_SECONDS = 60 * 60 * 24 * 7;
 
+export enum Resolution {
+    Hours = 'h',
+    Minutes = 'm',
+    Seconds = 's',
+}
+
 /**
  * Detects type of diff changes: add or delete.
  *
@@ -246,6 +252,27 @@ const deleteOutdatedPatches = async (
 };
 
 /**
+ * Generates a creation time timestamp based on the specified resolution.
+ *
+ * @param resolution The desired resolution for the timestamp (Minutes, Seconds,
+ * or Hours).
+ *
+ * @returns A timestamp representing the creation time based on the specified
+ * resolution.
+ */
+const generateCreationTime = (resolution: Resolution): number => {
+    switch (resolution) {
+        case Resolution.Minutes:
+            return Date.now() / (1000 * 60);
+        case Resolution.Seconds:
+            return Date.now() / 1000;
+        case Resolution.Hours:
+        default:
+            return Date.now() / (1000 * 60 * 60);
+    }
+};
+
+/**
  * First verifies the version tags in the old and new filters, ensuring they are
  * present and in the correct order. Then calculates the difference between
  * the old and new filters in [RCS format](https://www.gnu.org/software/diffutils/manual/diffutils.html#RCS).
@@ -262,6 +289,13 @@ const deleteOutdatedPatches = async (
  * @param patchesPath The relative path to the directory where the patch should
  * be saved. The patch filename will be `<path_to_patches>/$PATCH_VERSION.patch`,
  * where `$PATCH_VERSION` is the value of `Version` from `<old_filter>`.
+ * @param name Name of the patch file, an arbitrary string to identify the patch.
+ * Must be a string of length 1-64 with no spaces or other special characters.
+ * @param time Expiration time for the diff update (the unit depends on `resolution`).
+ * @param resolution Is an optional flag, that specifies the resolution for
+ * both `expirationPeriod` and `epochTimestamp` (timestamp when the patch was
+ * generated). It can be either `h` (hours), `m` (minutes) or `s` (seconds).
+ * If `resolution` is not specified, it is assumed to be `h`.
  * @param checksum An optional flag, indicating whether it should calculate
  * the SHA sum for the filter and add it to the `diff` directive with the filter
  * name and the number of changed lines, following this format:
@@ -274,6 +308,9 @@ export const buildDiff = async (
     oldFilterPath: string,
     newFilterPath: string,
     patchesPath: string,
+    name: string,
+    time: number,
+    resolution: Resolution = Resolution.Hours,
     checksum: boolean = false,
     deleteOlderThanSec: number = DEFAULT_PATCH_TTL_SECONDS,
 ): Promise<void> => {
@@ -304,10 +341,17 @@ export const buildDiff = async (
         await fs.promises.mkdir(pathToPatches, { mode: READ_WRITE_MODE });
     }
 
+    const epochTimestamp = generateCreationTime(resolution);
+    const getDiffFileName = (version: string): string => {
+        return resolution
+            ? `${name}_${version}-${resolution}-${epochTimestamp}-${time}.patch`
+            : `${name}_${version}-${epochTimestamp}-${time}.patch`;
+    };
+
     // Create empty patch for future version if it doesn't exists.
-    if (!fs.existsSync(path.join(pathToPatches, `${versionOfNewFile}.patch`))) {
+    if (!fs.existsSync(path.join(pathToPatches, getDiffFileName(versionOfNewFile)))) {
         await fs.promises.writeFile(
-            path.join(pathToPatches, `${versionOfNewFile}.patch`),
+            path.join(pathToPatches, getDiffFileName(versionOfNewFile)),
             '',
         );
     }
@@ -321,7 +365,7 @@ export const buildDiff = async (
     );
     const endOfNewFile = newFile.endsWith('\r\n') ? '\r\n' : '\n';
     newFileSplitted = await updateDiffPathTagInFilter(
-        path.join(pathToPatchesRelativeToNewFilter, `${versionOfNewFile}.patch`),
+        path.join(pathToPatchesRelativeToNewFilter, getDiffFileName(versionOfNewFile)),
         newFileSplitted,
         newListPath,
         endOfNewFile,
@@ -339,7 +383,7 @@ export const buildDiff = async (
 
     // Save diff to patch file.
     await fs.promises.writeFile(
-        path.join(pathToPatches, `${versionOfOldFile}.patch`),
+        path.join(pathToPatches, getDiffFileName(versionOfOldFile)),
         patch,
     );
 
