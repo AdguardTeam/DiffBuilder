@@ -263,12 +263,12 @@ const deleteOutdatedPatches = async (
 const generateCreationTime = (resolution: Resolution): number => {
     switch (resolution) {
         case Resolution.Minutes:
-            return Date.now() / (1000 * 60);
+            return Math.round(Date.now() / (1000 * 60));
         case Resolution.Seconds:
-            return Date.now() / 1000;
+            return Math.round(Date.now() / 1000);
         case Resolution.Hours:
         default:
-            return Date.now() / (1000 * 60 * 60);
+            return Math.round(Date.now() / (1000 * 60 * 60));
     }
 };
 
