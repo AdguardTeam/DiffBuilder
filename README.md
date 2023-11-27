@@ -22,10 +22,6 @@ Where:
 
 # Algorithm
 
-## 1. Extract version from filters
-If the old or new filter doesn't contain a `Version` tag, the command will return an error.
-If the new filter contains a version newer than in the old filter, the command will return an error.
-
 ## 2. Create patch for the newer version
 Create an empty patch file for the newer version of the filter and save it to `<path_to_patches>/$PATCH_VERSION.patch`, where `$PATCH_VERSION` is the value of `Version` from `new_filter`.
 

@@ -321,39 +321,39 @@ export const buildDiff = async (
     const oldFile = await fs.promises.readFile(prevListPath, { encoding: 'utf-8' });
     let newFile = await fs.promises.readFile(newListPath, { encoding: 'utf-8' });
 
-    const oldFileSplitted = oldFile.split(/\r?\n/);
-    let newFileSplitted = newFile.split(/\r?\n/);
+    const endOfOldFile = /\r\n$/gm.test(oldFile) ? '\r\n' : '\n';
+    const endOfNewFile = /\r\n$/gm.test(newFile) ? '\r\n' : '\n';
 
-    const versionOfOldFile = parseTag('Version', oldFileSplitted);
-    const versionOfNewFile = parseTag('Version', newFileSplitted);
+    const oldFileSplitted = oldFile.split(endOfOldFile);
+    let newFileSplitted = newFile.split(endOfNewFile);
 
-    if (!versionOfOldFile) {
-        throw new Error(`Not found 'Version' tag in old filter located in the: ${oldFile}`);
-    }
-
-    if (!versionOfNewFile) {
-        throw new Error(`Not found 'Version' tag in new filter located in the: ${newFile}`);
-    }
+    const oldFileDiff = parseTag(DIFF_PATH_TAG, oldFileSplitted);
 
     // Create folder for patches if it doesn't exists.
     if (!fs.existsSync(pathToPatches)) {
-        const READ_WRITE_MODE = 0x666;
-        await fs.promises.mkdir(pathToPatches, { mode: READ_WRITE_MODE });
+        await fs.promises.mkdir(pathToPatches, { recursive: true });
     }
 
+    // Scan patches folder and delete outdated patches.
+    await deleteOutdatedPatches(
+        pathToPatches,
+        deleteOlderThanSec,
+    );
+
     const epochTimestamp = generateCreationTime(resolution);
-    const getDiffFileName = (version: string): string => {
-        return resolution
-            ? `${name}_${version}-${resolution}-${epochTimestamp}-${time}.patch`
-            : `${name}_${version}-${epochTimestamp}-${time}.patch`;
-    };
+    const newFileDiff = resolution && resolution !== Resolution.Hours
+        ? `${name}-${resolution}-${epochTimestamp}-${time}.patch`
+        : `${name}-${epochTimestamp}-${time}.patch`;
+
+    if (oldFileDiff === newFileDiff) {
+        // eslint-disable-next-line max-len
+        throw new Error(`Old patch name "${oldFileDiff}" and new patch name "${newFileDiff}" are the same. Change the unit of measure to a smaller one or wait.`);
+    }
 
     // Create empty patch for future version if it doesn't exists.
-    if (!fs.existsSync(path.join(pathToPatches, getDiffFileName(versionOfNewFile)))) {
-        await fs.promises.writeFile(
-            path.join(pathToPatches, getDiffFileName(versionOfNewFile)),
-            '',
-        );
+    const emptyPatchForNewVersion = path.join(pathToPatches, newFileDiff);
+    if (!fs.existsSync(emptyPatchForNewVersion)) {
+        await fs.promises.writeFile(emptyPatchForNewVersion, '');
     }
 
     // ! Important: Update `Diff-Path` before calculating the diff to ensure
@@ -363,14 +363,18 @@ export const buildDiff = async (
         path.dirname(newFilterPath),
         pathToPatches,
     );
-    const endOfNewFile = newFile.endsWith('\r\n') ? '\r\n' : '\n';
     newFileSplitted = await updateDiffPathTagInFilter(
-        path.join(pathToPatchesRelativeToNewFilter, getDiffFileName(versionOfNewFile)),
+        path.join(pathToPatchesRelativeToNewFilter, newFileDiff),
         newFileSplitted,
         newListPath,
         endOfNewFile,
     );
     newFile = newFileSplitted.join(endOfNewFile);
+
+    // We cannot save diff, if diff in old file doesn't exists.
+    if (!oldFileDiff) {
+        return;
+    }
 
     // Calculate diff
     let patch = createPatch(oldFile, newFile);
@@ -383,13 +387,7 @@ export const buildDiff = async (
 
     // Save diff to patch file.
     await fs.promises.writeFile(
-        path.join(pathToPatches, getDiffFileName(versionOfOldFile)),
+        path.join(pathToPatches, oldFileDiff),
         patch,
-    );
-
-    // Scan patches folder and delete outdated patches.
-    await deleteOutdatedPatches(
-        pathToPatches,
-        deleteOlderThanSec,
     );
 };
