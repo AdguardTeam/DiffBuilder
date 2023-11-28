@@ -385,9 +385,15 @@ export const buildDiff = async (
         patch = diffDirective.concat('\n', patch);
     }
 
+    // Diff-Path contains path relative to the filter path, so we need
+    // to resolve path.
+    const oldFilePatch = path.resolve(
+        path.dirname(prevListPath),
+        oldFileDiff,
+    );
     // Save diff to patch file.
     await fs.promises.writeFile(
-        path.join(pathToPatches, oldFileDiff),
+        oldFilePatch,
         patch,
     );
 };
