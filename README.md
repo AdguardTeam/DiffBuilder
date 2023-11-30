@@ -4,7 +4,7 @@ A tool for generating differential updates for filter lists.
 # How to Use
 
 ```bash
-diff-builder build [-c] [-d <seconds>] [-r <resolution>] -n <name> -t <expirationPeriod> <old_filter> <new_filter> <path_to_patches>
+diff-builder build [-c] [-d <seconds>] [-r <resolution>] [-v] -n <name> -t <expirationPeriod> <old_filter> <new_filter> <path_to_patches>
 ```
 
 Where:
@@ -15,6 +15,7 @@ Where:
 - `-r <timestampResolution>` or `--resolution=<timestampResolution>` - is an optional flag, that specifies the resolution for both `expirationPeriod` and `epochTimestamp` (timestamp when the patch was generated). It can be either `h` (hours), `m` (minutes) or `s` (seconds). If `resolution` is not specified, it is assumed to be `h`.
 - `-t <expirationPeriod>` or `--time=<expirationPeriod>` - expiration time for the diff update (the unit depends on `resolution`, see below).
 - `-d <seconds>` or `--delete-older-than=<seconds>` - an optional parameter, this time *in seconds* will be used when scanning the `<path_to_patches>` folder to remove patches whose `mtime` is older than the specified time. By default, it will be `604800` (7 days).
+- `-v` or `--verbose` - verbose mode.
 - `-c` or `--checksum` - an optional flag, indicating whether it should calculate the SHA sum for the filter and add it to the `diff` directive with the filter name and the number of changed lines, following this format: `diff name:[name] checksum:[checksum] lines:[lines]`:
     - `name` - the name of the corresponding filter list. This key-value pair is optional - it will be included only if there is a `Diff-Name` tag in the `<old_filter>`.
     - `checksum` - the expected SHA1 checksum of the file after the patch is applied. This is used to validate the patch.

@@ -7,6 +7,7 @@ import { parseTag } from '../common/parse-tag';
 import { DIFF_PATH_TAG } from '../common/constants';
 import { TypesOfChanges } from '../common/types-of-change';
 import { createDiffDirective } from '../common/diff-directive';
+import { calculateChecksum } from '../common/calculate-checksum';
 
 const DEFAULT_PATCH_TTL_SECONDS = 60 * 60 * 24 * 7;
 
@@ -221,11 +222,13 @@ const updateDiffPathTagInFilter = async (
  *
  * @param pathToPatches Directory for scan.
  * @param deleteOlderThanSeconds The time to live for the patch in *seconds*.
+ *
+ * @returns Returns number of deleted patches.
  */
 const deleteOutdatedPatches = async (
     pathToPatches: string,
     deleteOlderThanSeconds: number,
-): Promise<void> => {
+): Promise<number> => {
     const PATCH_EXTENSION = '.patch';
     const files = await fs.promises.readdir(pathToPatches);
     const tasksToDeleteFiles: Promise<void>[] = [];
@@ -248,7 +251,9 @@ const deleteOutdatedPatches = async (
         }
     }
 
-    await Promise.all(tasksToDeleteFiles);
+    const deleted = await Promise.all(tasksToDeleteFiles);
+
+    return deleted.length;
 };
 
 /**
@@ -270,6 +275,42 @@ const generateCreationTime = (resolution: Resolution): number => {
         default:
             return Math.round(Date.now() / (1000 * 60 * 60));
     }
+};
+
+/**
+ * Checks if a patch is empty based on certain criteria.
+ *
+ * @param patch The patch to be checked.
+ *
+ * @returns Returns `true` if the patch is empty, otherwise `false`.
+ */
+const checkIfPatchIsEmpty = (patch: string): boolean => {
+    const lines = patch.split('\n');
+
+    if (lines.length === 3
+        && lines[0] === 'd1 1'
+        && lines[1] === 'a1 1'
+        && lines[2].startsWith(` ${DIFF_PATH_TAG}`)
+    ) {
+        return true;
+    }
+
+    return false;
+};
+
+/**
+ * Creates a logger function with the specified "verbose" setting.
+ *
+ * @param verbose A flag indicating whether to output messages.
+ *
+ * @returns Function for logging messages.
+ */
+const createLogger = (verbose: boolean) => {
+    return (message: string): void => {
+        if (verbose) {
+            console.log(message);
+        }
+    };
 };
 
 /**
@@ -303,6 +344,7 @@ const generateCreationTime = (resolution: Resolution): number => {
  * @param deleteOlderThanSec An optional parameter, the time to live for the patch
  * in *seconds*. By default, it will be `604800` (7 days). The utility will
  * scan `<path_to_patches>` and delete patches whose `mtime` has expired.
+ * @param verbose Verbose mode.
  */
 export const buildDiff = async (
     oldFilterPath: string,
@@ -313,50 +355,68 @@ export const buildDiff = async (
     resolution: Resolution = Resolution.Hours,
     checksum: boolean = false,
     deleteOlderThanSec: number = DEFAULT_PATCH_TTL_SECONDS,
+    verbose: boolean = false,
 ): Promise<void> => {
+    const log = createLogger(verbose);
+
+    // Paths
     const prevListPath = path.resolve(process.cwd(), oldFilterPath);
     const newListPath = path.resolve(process.cwd(), newFilterPath);
     const pathToPatches = path.resolve(process.cwd(), patchesPath);
 
+    // Filters' content
     const oldFile = await fs.promises.readFile(prevListPath, { encoding: 'utf-8' });
     let newFile = await fs.promises.readFile(newListPath, { encoding: 'utf-8' });
 
+    // End of files
     const endOfOldFile = /\r\n$/gm.test(oldFile) ? '\r\n' : '\n';
     const endOfNewFile = /\r\n$/gm.test(newFile) ? '\r\n' : '\n';
 
+    // Splitted filters' content
     const oldFileSplitted = oldFile.split(endOfOldFile);
     let newFileSplitted = newFile.split(endOfNewFile);
 
-    const oldFileDiff = parseTag(DIFF_PATH_TAG, oldFileSplitted);
+    const oldFileDiffName = parseTag(DIFF_PATH_TAG, oldFileSplitted);
 
     // Create folder for patches if it doesn't exists.
     if (!fs.existsSync(pathToPatches)) {
         await fs.promises.mkdir(pathToPatches, { recursive: true });
+        log(`Folder for patches does not exists, created at '${pathToPatches}'.`);
     }
 
     // Scan patches folder and delete outdated patches.
-    await deleteOutdatedPatches(
+    const deleted = await deleteOutdatedPatches(
         pathToPatches,
         deleteOlderThanSec,
     );
 
+    log(`Deleted outdated patches: ${deleted}`);
+
+    // If files are the same - do nothing.
+    if (calculateChecksum(oldFile) === calculateChecksum(newFile)) {
+        log('Files are the same. Do nothing.');
+        return;
+    }
+
+    // Generate name for new patch
     const epochTimestamp = generateCreationTime(resolution);
-    const newFileDiff = resolution && resolution !== Resolution.Hours
+    const newFileDiffName = resolution && resolution !== Resolution.Hours
         ? `${name}-${resolution}-${epochTimestamp}-${time}.patch`
         : `${name}-${epochTimestamp}-${time}.patch`;
 
-    if (oldFileDiff === newFileDiff) {
+    if (oldFileDiffName === newFileDiffName) {
         // eslint-disable-next-line max-len
-        throw new Error(`Old patch name "${oldFileDiff}" and new patch name "${newFileDiff}" are the same. Change the unit of measure to a smaller one or wait.`);
+        throw new Error(`Old patch name "${oldFileDiffName}" and new patch name "${newFileDiffName}" are the same. Change the unit of measure to a smaller one or wait.`);
     }
 
     // Create empty patch for future version if it doesn't exists.
-    const emptyPatchForNewVersion = path.join(pathToPatches, newFileDiff);
+    const emptyPatchForNewVersion = path.join(pathToPatches, newFileDiffName);
     if (!fs.existsSync(emptyPatchForNewVersion)) {
         await fs.promises.writeFile(emptyPatchForNewVersion, '');
+        log(`Created patch for new filter at ${emptyPatchForNewVersion}.`);
     }
 
-    // ! Important: Update `Diff-Path` before calculating the diff to ensure
+    // Note: Update `Diff-Path` before calculating the diff to ensure
     // that changing `Diff-Path` will be correctly included in the resulting
     // diff patch.
     const pathToPatchesRelativeToNewFilter = path.relative(
@@ -364,7 +424,7 @@ export const buildDiff = async (
         pathToPatches,
     );
     newFileSplitted = await updateDiffPathTagInFilter(
-        path.join(pathToPatchesRelativeToNewFilter, newFileDiff),
+        path.join(pathToPatchesRelativeToNewFilter, newFileDiffName),
         newFileSplitted,
         newListPath,
         endOfNewFile,
@@ -372,12 +432,19 @@ export const buildDiff = async (
     newFile = newFileSplitted.join(endOfNewFile);
 
     // We cannot save diff, if diff in old file doesn't exists.
-    if (!oldFileDiff) {
+    if (!oldFileDiffName) {
+        log('Not found "Diff-Path" in the old filter. Patch can not be created.');
         return;
     }
 
     // Calculate diff
     let patch = createPatch(oldFile, newFile);
+
+    // Keep diff empty if patch contains only info about changing diff-path
+    if (checkIfPatchIsEmpty(patch)) {
+        log('No changes detected between old and new files. Patch would not be created.');
+        return;
+    }
 
     // Add checksum to patch if requested
     if (checksum) {
@@ -389,7 +456,7 @@ export const buildDiff = async (
     // to resolve path.
     const oldFilePatch = path.resolve(
         path.dirname(prevListPath),
-        oldFileDiff,
+        oldFileDiffName,
     );
     // Save diff to patch file.
     await fs.promises.writeFile(
