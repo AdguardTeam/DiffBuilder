@@ -188,35 +188,6 @@ export const findAndUpdateTag = (
 };
 
 /**
- * Updates `Diff-Path` tag in filter's rules, then join them via provided
- * `endOfFile` and save result to the specified path.
- *
- * @param diffPath Value of `Diff-Path` tag.
- * @param filterContent Filter's rules.
- * @param filterPath Where to save filter.
- * @param concatenationString What string use for join filter's rules.
- *
- * @returns Updated filter's rules.
- */
-const updateDiffPathTagInFilter = async (
-    diffPath: string,
-    filterContent: string[],
-    filterPath: string,
-    concatenationString: string,
-): Promise<string[]> => {
-    const fileWithUpdatedTags = findAndUpdateTag(
-        DIFF_PATH_TAG,
-        diffPath,
-        filterContent,
-    );
-
-    // Save filter with updated tag
-    await fs.promises.writeFile(filterPath, fileWithUpdatedTags.join(concatenationString));
-
-    return fileWithUpdatedTags;
-};
-
-/**
  * Scans `pathToPatches` for files with the "*.patch" pattern and deletes those
  * whose `mtime` has expired.
  *
@@ -419,15 +390,16 @@ export const buildDiff = async (
     // Note: Update `Diff-Path` before calculating the diff to ensure
     // that changing `Diff-Path` will be correctly included in the resulting
     // diff patch.
+    // But don't save changes in file yet, because we need to check that patch
+    // will be not empty.
     const pathToPatchesRelativeToNewFilter = path.relative(
         path.dirname(newFilterPath),
         pathToPatches,
     );
-    newFileSplitted = await updateDiffPathTagInFilter(
+    newFileSplitted = await findAndUpdateTag(
+        DIFF_PATH_TAG,
         path.join(pathToPatchesRelativeToNewFilter, newFileDiffName),
         newFileSplitted,
-        newListPath,
-        endOfNewFile,
     );
     newFile = newFileSplitted.join(endOfNewFile);
 
@@ -441,10 +413,18 @@ export const buildDiff = async (
     let patch = createPatch(oldFile, newFile);
 
     // Keep diff empty if patch contains only info about changing diff-path
+    // TODO: Maybe simply compare filter's by theirs checksum?
     if (checkIfPatchIsEmpty(patch)) {
         log('No changes detected between old and new files. Patch would not be created.');
         return;
     }
+
+    // After checking that patch is not empty we can save path to new patch
+    // in the new file.
+    await fs.promises.writeFile(
+        newListPath,
+        newFile,
+    );
 
     // Add checksum to patch if requested
     if (checksum) {
