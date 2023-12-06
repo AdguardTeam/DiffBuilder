@@ -670,23 +670,6 @@ const findAndUpdateTag = (tagName, tagValue, filterContent) => {
     return updatedFile;
 };
 /**
- * Updates `Diff-Path` tag in filter's rules, then join them via provided
- * `endOfFile` and save result to the specified path.
- *
- * @param diffPath Value of `Diff-Path` tag.
- * @param filterContent Filter's rules.
- * @param filterPath Where to save filter.
- * @param concatenationString What string use for join filter's rules.
- *
- * @returns Updated filter's rules.
- */
-const updateDiffPathTagInFilter = async (diffPath, filterContent, filterPath, concatenationString) => {
-    const fileWithUpdatedTags = findAndUpdateTag(DIFF_PATH_TAG, diffPath, filterContent);
-    // Save filter with updated tag
-    await fs.promises.writeFile(filterPath, fileWithUpdatedTags.join(concatenationString));
-    return fileWithUpdatedTags;
-};
-/**
  * Scans `pathToPatches` for files with the "*.patch" pattern and deletes those
  * whose `mtime` has expired.
  *
@@ -739,8 +722,9 @@ const generateCreationTime = (resolution) => {
 /**
  * Checks if a patch is empty based on certain criteria.
  *
- * @param {string[]} patch - The patch to be checked.
- * @returns {boolean} Returns `true` if the patch is empty, otherwise `false`.
+ * @param patch The patch to be checked.
+ *
+ * @returns Returns `true` if the patch is empty, otherwise `false`.
  */
 const checkIfPatchIsEmpty = (patch) => {
     const lines = patch.split('\n');
@@ -752,6 +736,13 @@ const checkIfPatchIsEmpty = (patch) => {
     }
     return false;
 };
+/**
+ * Creates a logger function with the specified "verbose" setting.
+ *
+ * @param verbose A flag indicating whether to output messages.
+ *
+ * @returns Function for logging messages.
+ */
 const createLogger = (verbose) => {
     return (message) => {
         if (verbose) {
@@ -839,8 +830,10 @@ const buildDiff = async (oldFilterPath, newFilterPath, patchesPath, name, time, 
     // Note: Update `Diff-Path` before calculating the diff to ensure
     // that changing `Diff-Path` will be correctly included in the resulting
     // diff patch.
+    // But don't save changes in file yet, because we need to check that patch
+    // will be not empty.
     const pathToPatchesRelativeToNewFilter = path.relative(path.dirname(newFilterPath), pathToPatches);
-    newFileSplitted = await updateDiffPathTagInFilter(path.join(pathToPatchesRelativeToNewFilter, newFileDiffName), newFileSplitted, newListPath, endOfNewFile);
+    newFileSplitted = await findAndUpdateTag(DIFF_PATH_TAG, path.join(pathToPatchesRelativeToNewFilter, newFileDiffName), newFileSplitted);
     newFile = newFileSplitted.join(endOfNewFile);
     // We cannot save diff, if diff in old file doesn't exists.
     if (!oldFileDiffName) {
@@ -850,10 +843,14 @@ const buildDiff = async (oldFilterPath, newFilterPath, patchesPath, name, time, 
     // Calculate diff
     let patch = createPatch(oldFile, newFile);
     // Keep diff empty if patch contains only info about changing diff-path
+    // FIXME: Change logic, because new filter wouldn't contain Diff-Path yet.
     if (checkIfPatchIsEmpty(patch)) {
         log('No changes detected between old and new files. Patch would not be created.');
         return;
     }
+    // After checking that patch is not empty we can save path to new patch
+    // in the new file.
+    await fs.promises.writeFile(newListPath, newFile);
     // Add checksum to patch if requested
     if (checksum) {
         const diffDirective = createDiffDirective(oldFileSplitted, newFile, patch);
@@ -864,6 +861,7 @@ const buildDiff = async (oldFilterPath, newFilterPath, patchesPath, name, time, 
     const oldFilePatch = path.resolve(path.dirname(prevListPath), oldFileDiffName);
     // Save diff to patch file.
     await fs.promises.writeFile(oldFilePatch, patch);
+    log(`Wrote patch to: ${oldFilePatch}`);
 };
 
 exports.buildDiff = buildDiff;

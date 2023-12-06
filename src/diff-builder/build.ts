@@ -413,7 +413,7 @@ export const buildDiff = async (
     let patch = createPatch(oldFile, newFile);
 
     // Keep diff empty if patch contains only info about changing diff-path
-    // TODO: Maybe simply compare filter's by theirs checksum?
+    // FIXME: Change logic, because new filter wouldn't contain Diff-Path yet.
     if (checkIfPatchIsEmpty(patch)) {
         log('No changes detected between old and new files. Patch would not be created.');
         return;
@@ -443,4 +443,6 @@ export const buildDiff = async (
         oldFilePatch,
         patch,
     );
+
+    log(`Wrote patch to: ${oldFilePatch}`);
 };
