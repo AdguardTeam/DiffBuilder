@@ -44,7 +44,7 @@ async function main(): Promise<void> {
             } = options;
 
             if (resolution && !Object.values(Resolution).includes(resolution as Resolution)) {
-                throw new Error('Resolution should be one of [\'h\', \'m\', \'s\']');
+                throw new Error(`Resolution should be one of ${Object.values(Resolution).join(',')}`);
             }
 
             if (/^[a-zA-Z0-9_.]{1,64}$/.test(name) === false) {
