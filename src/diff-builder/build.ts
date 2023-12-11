@@ -18,6 +18,66 @@ export enum Resolution {
 }
 
 /**
+ * Parameters for building a diff patch between old and new filters.
+ */
+interface BuildDiffParams {
+    /**
+     * The relative path to the old filter.
+     */
+    oldFilterPath: string;
+
+    /**
+     * The relative path to the new filter.
+     */
+    newFilterPath: string;
+
+    /**
+     * The relative path to the directory where the patch should be saved.
+     * The patch filename will be `<path_to_patches>/$PATCH_VERSION.patch`,
+     * where `$PATCH_VERSION` is the value of `Version` from `<old_filter>`.
+     */
+    patchesPath: string;
+
+    /**
+     * Name of the patch file, an arbitrary string to identify the patch.
+     * Must be a string of length 1-64 with no spaces or other special characters.
+     */
+    name: string;
+
+    /**
+     * Expiration time for the diff update (the unit depends on `resolution`).
+     */
+    time: number;
+
+    /**
+     * An optional flag, indicating whether it should calculate
+     * the SHA sum for the filter and add it to the `diff` directive with the filter
+     * name and the number of changed lines.
+     */
+    checksum?: boolean;
+
+    /**
+     * An optional flag, specifying the resolution for
+     * both `expirationPeriod` and `epochTimestamp` (timestamp when the patch was
+     * generated). It can be either `h` (hours), `m` (minutes), or `s` (seconds).
+     * If not specified, it is assumed to be `h`.
+     */
+    resolution?: Resolution;
+
+    /**
+     * An optional parameter, the time to live for the patch
+     * in *seconds*. By default, it will be `604800` (7 days). The utility will
+     * scan `<path_to_patches>` and delete patches whose `mtime` has expired.
+     */
+    deleteOlderThanSec?: number;
+
+    /**
+     * Verbose mode.
+     */
+    verbose?: boolean;
+}
+
+/**
  * Detects type of diff changes: add or delete.
  *
  * @param line Line of string to parse.
@@ -296,38 +356,23 @@ const createLogger = (verbose: boolean) => {
  * Finally, scans the patch directory and deletes patches with the ".patch"
  * extension that have an mtime older than the specified threshold.
  *
- * @param oldFilterPath The relative path to the old filter.
- * @param newFilterPath The relative path to the new filter.
- * @param patchesPath The relative path to the directory where the patch should
- * be saved. The patch filename will be `<path_to_patches>/$PATCH_VERSION.patch`,
- * where `$PATCH_VERSION` is the value of `Version` from `<old_filter>`.
- * @param name Name of the patch file, an arbitrary string to identify the patch.
- * Must be a string of length 1-64 with no spaces or other special characters.
- * @param time Expiration time for the diff update (the unit depends on `resolution`).
- * @param resolution Is an optional flag, that specifies the resolution for
- * both `expirationPeriod` and `epochTimestamp` (timestamp when the patch was
- * generated). It can be either `h` (hours), `m` (minutes) or `s` (seconds).
- * If `resolution` is not specified, it is assumed to be `h`.
- * @param checksum An optional flag, indicating whether it should calculate
- * the SHA sum for the filter and add it to the `diff` directive with the filter
- * name and the number of changed lines, following this format:
- * `diff name:[name] checksum:[checksum] lines:[lines]`.
- * @param deleteOlderThanSec An optional parameter, the time to live for the patch
- * in *seconds*. By default, it will be `604800` (7 days). The utility will
- * scan `<path_to_patches>` and delete patches whose `mtime` has expired.
- * @param verbose Verbose mode.
+ * TODO: Make parameters as object.
+ *
+ * @param params - Parameters for building the diff patch.
  */
-export const buildDiff = async (
-    oldFilterPath: string,
-    newFilterPath: string,
-    patchesPath: string,
-    name: string,
-    time: number,
-    resolution: Resolution = Resolution.Hours,
-    checksum: boolean = false,
-    deleteOlderThanSec: number = DEFAULT_PATCH_TTL_SECONDS,
-    verbose: boolean = false,
-): Promise<void> => {
+export const buildDiff = async (params: BuildDiffParams): Promise<void> => {
+    const {
+        oldFilterPath,
+        newFilterPath,
+        patchesPath,
+        name,
+        time,
+        resolution = Resolution.Hours,
+        checksum = false,
+        deleteOlderThanSec = DEFAULT_PATCH_TTL_SECONDS,
+        verbose = false,
+    } = params;
+
     const log = createLogger(verbose);
 
     // Paths

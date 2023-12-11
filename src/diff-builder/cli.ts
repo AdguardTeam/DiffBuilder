@@ -25,13 +25,13 @@ async function main(): Promise<void> {
         .requiredOption('-t, --time <expirationPeriod>', 'expiration time for the diff update (the unit depends on `resolution`).')
         .option('-r, --resolution <timestampResolution>', 'is an optional flag, that specifies the resolution for both `expirationPeriod` and `epochTimestamp` (timestamp when the patch was generated). It can be either `h` (hours), `m` (minutes) or `s` (seconds). If `resolution` is not specified, it is assumed to be `h`.')
         .option('-c, --checksum', 'an optional flag, indicating whether it should calculate the SHA sum for the filter and add it to the `diff` directive with the filter name and the number of changed lines, following this format: `diff name:[name] checksum:[checksum] lines:[lines]`')
-        .option('-d, --delete-older-than <seconds>', 'an optional parameter, the time to live for the patch in *seconds*. By default, it will be `604800` (7 days). The utility will scan `<path_to_patches>` and delete patches whose `mtime` has expired')
+        .option('-d, --delete-older-than-sec <seconds>', 'an optional parameter, the time to live for the patch in *seconds*. By default, it will be `604800` (7 days). The utility will scan `<path_to_patches>` and delete patches whose `mtime` has expired')
         .option('-v, --verbose', 'verbose mode')
         /* eslint-enable max-len */
         .action(async (
             oldFilterPath,
             newFilterPath,
-            pathToPatches,
+            patchesPath,
             options,
         ) => {
             const {
@@ -39,7 +39,7 @@ async function main(): Promise<void> {
                 time,
                 resolution,
                 checksum,
-                deleteOlderThan,
+                deleteOlderThanSec,
                 verbose,
             } = options;
 
@@ -51,17 +51,17 @@ async function main(): Promise<void> {
                 throw new Error('Name of the patch file should contain only letters, digits, \'_\' and \'.\'');
             }
 
-            await buildDiff(
+            await buildDiff({
                 oldFilterPath,
                 newFilterPath,
-                pathToPatches,
+                patchesPath,
                 name,
                 time,
                 resolution,
                 checksum,
-                deleteOlderThan,
+                deleteOlderThanSec,
                 verbose,
-            );
+            });
         });
 
     program.parseAsync(process.argv);
