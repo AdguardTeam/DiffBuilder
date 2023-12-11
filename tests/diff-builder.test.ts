@@ -1,12 +1,12 @@
-import { calculateChecksum } from '../common/calculate-checksum';
-import { createDiffDirective } from '../common/diff-directive';
-import { parseTag } from '../common/parse-tag';
-import { TypesOfChanges } from '../common/types-of-change';
+import { calculateChecksum } from '../src/common/calculate-checksum';
+import { createDiffDirective } from '../src/common/diff-directive';
+import { parseTag } from '../src/common/parse-tag';
+import { TypesOfChanges } from '../src/common/types-of-change';
 import {
     detectTypeOfChanges,
     createPatch,
     findAndUpdateTag,
-} from '../diff-builder/build';
+} from '../src/diff-builder/build';
 import {
     FILE_1,
     FILE_2,

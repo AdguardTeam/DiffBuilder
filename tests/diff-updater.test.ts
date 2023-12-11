@@ -1,5 +1,5 @@
-import { parseDiffDirective } from '../common/diff-directive';
-import { applyRcsPatch } from '../diff-updater/update';
+import { parseDiffDirective } from '../src/common/diff-directive';
+import { applyRcsPatch } from '../src/diff-updater/update';
 import {
     FILE_1,
     FILE_1_2_PATCH,

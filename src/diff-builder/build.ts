@@ -7,8 +7,75 @@ import { parseTag } from '../common/parse-tag';
 import { DIFF_PATH_TAG } from '../common/constants';
 import { TypesOfChanges } from '../common/types-of-change';
 import { createDiffDirective } from '../common/diff-directive';
+import { calculateChecksum } from '../common/calculate-checksum';
 
 const DEFAULT_PATCH_TTL_SECONDS = 60 * 60 * 24 * 7;
+
+export enum Resolution {
+    Hours = 'h',
+    Minutes = 'm',
+    Seconds = 's',
+}
+
+/**
+ * Parameters for building a diff patch between old and new filters.
+ */
+interface BuildDiffParams {
+    /**
+     * The relative path to the old filter.
+     */
+    oldFilterPath: string;
+
+    /**
+     * The relative path to the new filter.
+     */
+    newFilterPath: string;
+
+    /**
+     * The relative path to the directory where the patch should be saved.
+     * The patch filename will be `<path_to_patches>/$PATCH_VERSION.patch`,
+     * where `$PATCH_VERSION` is the value of `Version` from `<old_filter>`.
+     */
+    patchesPath: string;
+
+    /**
+     * Name of the patch file, an arbitrary string to identify the patch.
+     * Must be a string of length 1-64 with no spaces or other special characters.
+     */
+    name: string;
+
+    /**
+     * Expiration time for the diff update (the unit depends on `resolution`).
+     */
+    time: number;
+
+    /**
+     * An optional flag, indicating whether it should calculate
+     * the SHA sum for the filter and add it to the `diff` directive with the filter
+     * name and the number of changed lines.
+     */
+    checksum?: boolean;
+
+    /**
+     * An optional flag, specifying the resolution for
+     * both `expirationPeriod` and `epochTimestamp` (timestamp when the patch was
+     * generated). It can be either `h` (hours), `m` (minutes), or `s` (seconds).
+     * If not specified, it is assumed to be `h`.
+     */
+    resolution?: Resolution;
+
+    /**
+     * An optional parameter, the time to live for the patch
+     * in *seconds*. By default, it will be `604800` (7 days). The utility will
+     * scan `<path_to_patches>` and delete patches whose `mtime` has expired.
+     */
+    deleteOlderThanSec?: number;
+
+    /**
+     * Verbose mode.
+     */
+    verbose?: boolean;
+}
 
 /**
  * Detects type of diff changes: add or delete.
@@ -181,45 +248,18 @@ export const findAndUpdateTag = (
 };
 
 /**
- * Updates `Diff-Path` tag in filter's rules, then join them via provided
- * `endOfFile` and save result to the specified path.
- *
- * @param diffPath Value of `Diff-Path` tag.
- * @param filterContent Filter's rules.
- * @param filterPath Where to save filter.
- * @param concatenationString What string use for join filter's rules.
- *
- * @returns Updated filter's rules.
- */
-const updateDiffPathTagInFilter = async (
-    diffPath: string,
-    filterContent: string[],
-    filterPath: string,
-    concatenationString: string,
-): Promise<string[]> => {
-    const fileWithUpdatedTags = findAndUpdateTag(
-        DIFF_PATH_TAG,
-        diffPath,
-        filterContent,
-    );
-
-    // Save filter with updated tag
-    await fs.promises.writeFile(filterPath, fileWithUpdatedTags.join(concatenationString));
-
-    return fileWithUpdatedTags;
-};
-
-/**
  * Scans `pathToPatches` for files with the "*.patch" pattern and deletes those
  * whose `mtime` has expired.
  *
  * @param pathToPatches Directory for scan.
  * @param deleteOlderThanSeconds The time to live for the patch in *seconds*.
+ *
+ * @returns Returns number of deleted patches.
  */
 const deleteOutdatedPatches = async (
     pathToPatches: string,
     deleteOlderThanSeconds: number,
-): Promise<void> => {
+): Promise<number> => {
     const PATCH_EXTENSION = '.patch';
     const files = await fs.promises.readdir(pathToPatches);
     const tasksToDeleteFiles: Promise<void>[] = [];
@@ -242,7 +282,66 @@ const deleteOutdatedPatches = async (
         }
     }
 
-    await Promise.all(tasksToDeleteFiles);
+    const deleted = await Promise.all(tasksToDeleteFiles);
+
+    return deleted.length;
+};
+
+/**
+ * Generates a creation time timestamp based on the specified resolution.
+ *
+ * @param resolution The desired resolution for the timestamp (Minutes, Seconds,
+ * or Hours).
+ *
+ * @returns A timestamp representing the creation time based on the specified
+ * resolution.
+ */
+const generateCreationTime = (resolution: Resolution): number => {
+    switch (resolution) {
+        case Resolution.Minutes:
+            return Math.round(Date.now() / (1000 * 60));
+        case Resolution.Seconds:
+            return Math.round(Date.now() / 1000);
+        case Resolution.Hours:
+        default:
+            return Math.round(Date.now() / (1000 * 60 * 60));
+    }
+};
+
+/**
+ * Checks if a patch is empty based on certain criteria.
+ *
+ * @param patch The patch to be checked.
+ *
+ * @returns Returns `true` if the patch is empty, otherwise `false`.
+ */
+const checkIfPatchIsEmpty = (patch: string): boolean => {
+    const lines = patch.split('\n');
+
+    if (lines.length === 3
+        && lines[0] === 'd1 1'
+        && lines[1] === 'a1 1'
+        && lines[2].startsWith(` ${DIFF_PATH_TAG}`)
+    ) {
+        return true;
+    }
+
+    return false;
+};
+
+/**
+ * Creates a logger function with the specified "verbose" setting.
+ *
+ * @param verbose A flag indicating whether to output messages.
+ *
+ * @returns Function for logging messages.
+ */
+const createLogger = (verbose: boolean) => {
+    return (message: string): void => {
+        if (verbose) {
+            console.log(message);
+        }
+    };
 };
 
 /**
@@ -257,79 +356,120 @@ const deleteOutdatedPatches = async (
  * Finally, scans the patch directory and deletes patches with the ".patch"
  * extension that have an mtime older than the specified threshold.
  *
- * @param oldFilterPath The relative path to the old filter.
- * @param newFilterPath The relative path to the new filter.
- * @param patchesPath The relative path to the directory where the patch should
- * be saved. The patch filename will be `<path_to_patches>/$PATCH_VERSION.patch`,
- * where `$PATCH_VERSION` is the value of `Version` from `<old_filter>`.
- * @param checksum An optional flag, indicating whether it should calculate
- * the SHA sum for the filter and add it to the `diff` directive with the filter
- * name and the number of changed lines, following this format:
- * `diff name:[name] checksum:[checksum] lines:[lines]`.
- * @param deleteOlderThanSec An optional parameter, the time to live for the patch
- * in *seconds*. By default, it will be `604800` (7 days). The utility will
- * scan `<path_to_patches>` and delete patches whose `mtime` has expired.
+ * TODO: Add tests for files operations.
+ *
+ * @param params - Parameters for building the diff patch.
  */
-export const buildDiff = async (
-    oldFilterPath: string,
-    newFilterPath: string,
-    patchesPath: string,
-    checksum: boolean = false,
-    deleteOlderThanSec: number = DEFAULT_PATCH_TTL_SECONDS,
-): Promise<void> => {
+export const buildDiff = async (params: BuildDiffParams): Promise<void> => {
+    const {
+        oldFilterPath,
+        newFilterPath,
+        patchesPath,
+        name,
+        time,
+        resolution = Resolution.Hours,
+        checksum = false,
+        deleteOlderThanSec = DEFAULT_PATCH_TTL_SECONDS,
+        verbose = false,
+    } = params;
+
+    const log = createLogger(verbose);
+
+    // Paths
     const prevListPath = path.resolve(process.cwd(), oldFilterPath);
     const newListPath = path.resolve(process.cwd(), newFilterPath);
     const pathToPatches = path.resolve(process.cwd(), patchesPath);
 
+    // Filters' content
     const oldFile = await fs.promises.readFile(prevListPath, { encoding: 'utf-8' });
     let newFile = await fs.promises.readFile(newListPath, { encoding: 'utf-8' });
 
-    const oldFileSplitted = oldFile.split(/\r?\n/);
-    let newFileSplitted = newFile.split(/\r?\n/);
+    // End of files
+    const endOfOldFile = /\r\n$/gm.test(oldFile) ? '\r\n' : '\n';
+    const endOfNewFile = /\r\n$/gm.test(newFile) ? '\r\n' : '\n';
 
-    const versionOfOldFile = parseTag('Version', oldFileSplitted);
-    const versionOfNewFile = parseTag('Version', newFileSplitted);
+    // Splitted filters' content
+    const oldFileSplitted = oldFile.split(endOfOldFile);
+    let newFileSplitted = newFile.split(endOfNewFile);
 
-    if (!versionOfOldFile) {
-        throw new Error(`Not found 'Version' tag in old filter located in the: ${oldFile}`);
-    }
-
-    if (!versionOfNewFile) {
-        throw new Error(`Not found 'Version' tag in new filter located in the: ${newFile}`);
-    }
+    const oldFileDiffName = parseTag(DIFF_PATH_TAG, oldFileSplitted);
 
     // Create folder for patches if it doesn't exists.
     if (!fs.existsSync(pathToPatches)) {
-        const READ_WRITE_MODE = 0x666;
-        await fs.promises.mkdir(pathToPatches, { mode: READ_WRITE_MODE });
+        await fs.promises.mkdir(pathToPatches, { recursive: true });
+        log(`Folder for patches does not exists, created at '${pathToPatches}'.`);
+    }
+
+    // Scan patches folder and delete outdated patches.
+    const deleted = await deleteOutdatedPatches(
+        pathToPatches,
+        deleteOlderThanSec,
+    );
+
+    log(`Deleted outdated patches: ${deleted}`);
+
+    // If files are the same - do nothing.
+    if (calculateChecksum(oldFile) === calculateChecksum(newFile)) {
+        log('Files are the same. Do nothing.');
+        return;
+    }
+
+    // Generate name for new patch
+    const epochTimestamp = generateCreationTime(resolution);
+    const newFileDiffName = resolution && resolution !== Resolution.Hours
+        ? `${name}-${resolution}-${epochTimestamp}-${time}.patch`
+        : `${name}-${epochTimestamp}-${time}.patch`;
+
+    if (oldFileDiffName === newFileDiffName) {
+        // eslint-disable-next-line max-len
+        throw new Error(`Old patch name "${oldFileDiffName}" and new patch name "${newFileDiffName}" are the same. Change the unit of measure to a smaller one or wait.`);
     }
 
     // Create empty patch for future version if it doesn't exists.
-    if (!fs.existsSync(path.join(pathToPatches, `${versionOfNewFile}.patch`))) {
-        await fs.promises.writeFile(
-            path.join(pathToPatches, `${versionOfNewFile}.patch`),
-            '',
-        );
+    const emptyPatchForNewVersion = path.join(pathToPatches, newFileDiffName);
+    if (!fs.existsSync(emptyPatchForNewVersion)) {
+        await fs.promises.writeFile(emptyPatchForNewVersion, '');
+        log(`Created patch for new filter at ${emptyPatchForNewVersion}.`);
     }
 
-    // ! Important: Update `Diff-Path` before calculating the diff to ensure
+    // Note: Update `Diff-Path` before calculating the diff to ensure
     // that changing `Diff-Path` will be correctly included in the resulting
     // diff patch.
+    // But don't save changes in file yet, because we need to check that patch
+    // will be not empty.
     const pathToPatchesRelativeToNewFilter = path.relative(
         path.dirname(newFilterPath),
         pathToPatches,
     );
-    const endOfNewFile = newFile.endsWith('\r\n') ? '\r\n' : '\n';
-    newFileSplitted = await updateDiffPathTagInFilter(
-        path.join(pathToPatchesRelativeToNewFilter, `${versionOfNewFile}.patch`),
+    newFileSplitted = await findAndUpdateTag(
+        DIFF_PATH_TAG,
+        path.join(pathToPatchesRelativeToNewFilter, newFileDiffName),
         newFileSplitted,
-        newListPath,
-        endOfNewFile,
     );
     newFile = newFileSplitted.join(endOfNewFile);
 
+    // We cannot save diff, if diff in old file doesn't exists.
+    if (!oldFileDiffName) {
+        log('Not found "Diff-Path" in the old filter. Patch can not be created.');
+        return;
+    }
+
     // Calculate diff
     let patch = createPatch(oldFile, newFile);
+
+    // Keep diff empty if patch contains only info about changing diff-path
+    // FIXME: Change logic, because new filter wouldn't contain Diff-Path yet.
+    if (checkIfPatchIsEmpty(patch)) {
+        log('No changes detected between old and new files. Patch would not be created.');
+        return;
+    }
+
+    // After checking that patch is not empty we can save path to new patch
+    // in the new file.
+    await fs.promises.writeFile(
+        newListPath,
+        newFile,
+    );
 
     // Add checksum to patch if requested
     if (checksum) {
@@ -337,15 +477,17 @@ export const buildDiff = async (
         patch = diffDirective.concat('\n', patch);
     }
 
+    // Diff-Path contains path relative to the filter path, so we need
+    // to resolve path.
+    const oldFilePatch = path.resolve(
+        path.dirname(prevListPath),
+        oldFileDiffName,
+    );
     // Save diff to patch file.
     await fs.promises.writeFile(
-        path.join(pathToPatches, `${versionOfOldFile}.patch`),
+        oldFilePatch,
         patch,
     );
 
-    // Scan patches folder and delete outdated patches.
-    await deleteOutdatedPatches(
-        pathToPatches,
-        deleteOlderThanSec,
-    );
+    log(`Wrote patch to: ${oldFilePatch}`);
 };

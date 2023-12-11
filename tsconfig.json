@@ -13,9 +13,7 @@
     "node_modules/@types",
   ],
   "include": [
-    "diff-builder",
-    "diff-updater",
-    "common",
+    "src",
     "tests",
     "rollup.config.ts",
     ".eslintrc.js",

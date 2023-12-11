@@ -5,7 +5,6 @@ import { calculateChecksum } from '../common/calculate-checksum';
 import { DIFF_PATH_TAG } from '../common/constants';
 import { TypesOfChanges } from '../common/types-of-change';
 import { parseDiffDirective } from '../common/diff-directive';
-import { FILTER_3_V_1_0_1 } from '../tests/stubs/name';
 
 /**
  * Represents an RCS (Revision Control System) operation.
@@ -25,6 +24,12 @@ interface RcsOperation {
      * The number of lines affected by the operation.
      */
     numberOfLines: number;
+}
+
+enum HttpStatusCode {
+    NotFound = 404,
+    NoContent = 204,
+    Ok = 200,
 }
 
 /**
@@ -157,18 +162,22 @@ export const applyPatch = async (
         return filterContent;
     }
 
-    const patchUrl = filterUrl + diffPath;
     let patch: string[] = [];
 
     try {
-        const request = await axios.get(patchUrl);
+        // Cut last part of path
+        const baseURL = filterUrl
+            .split('/')
+            .slice(0, -1)
+            .join('/');
+        const request = await axios.get(diffPath, { baseURL });
 
-        if (request.status === axios.HttpStatusCode.NotFound || request.status === axios.HttpStatusCode.NoContent) {
+        if (request.status === HttpStatusCode.NotFound || request.status === HttpStatusCode.NoContent) {
             console.info('Update is not available.');
             return filterContent;
         }
 
-        if (request.status === axios.HttpStatusCode.Ok && request.data === '') {
+        if (request.status === HttpStatusCode.Ok && request.data === '') {
             console.info('Update is not available.');
             return filterContent;
         }

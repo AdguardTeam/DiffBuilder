@@ -5,11 +5,26 @@
   "author": "AdGuard",
   "license": "MIT",
   "main": "dist/diff-builder",
-  "types": "dist/types/diff-builder/build-diff.d.ts",
+  "types": "dist/types/diff-builder/build.d.ts",
   "files": [
     "dist",
     "src"
   ],
+  "exports": {
+    ".": "./dist/diff-builder",
+    "./diff-builder/cjs": "./dist/api/cjs/diff-builder.js",
+    "./diff-builder/es": "./dist/api/es/diff-builder.js",
+    "./diff-updater/cjs": "./dist/api/cjs/diff-updater.js",
+    "./diff-updater/es": "./dist/api/es/diff-updater.js"
+  },
+  "typesVersions": {
+      "*": {
+        "diff-builder/cjs": ["dist/types/diff-builder/build.d.ts"],
+        "diff-builder/es": ["dist/types/diff-builder/build.d.ts"],
+        "diff-updater/cjs": ["dist/types/diff-updater/update.d.ts"],
+        "diff-updater/es": ["dist/types/diff-updater/update.d.ts"]
+      }
+  },
   "bin": {
     "diff-builder": "dist/diff-builder"
   },

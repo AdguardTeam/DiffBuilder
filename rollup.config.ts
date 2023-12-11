@@ -33,7 +33,7 @@ const commonPlugins = [
 
 // Diff-builder cli
 const builderCliConfig = defineConfig({
-    input: 'diff-builder/cli.ts',
+    input: 'src/diff-builder/cli.ts',
     output: [
         {
             file: 'dist/diff-builder',
@@ -45,13 +45,13 @@ const builderCliConfig = defineConfig({
     external: commonExternal,
     plugins: commonPlugins.concat([preserveShebangs()]),
     watch: {
-        include: 'diff-builder/**',
+        include: 'src/diff-builder/**',
     },
 });
 
 // Diff-builder API
 const builderApiConfig = defineConfig({
-    input: 'diff-builder/api.ts',
+    input: 'src/diff-builder/api.ts',
     output: [
         {
             file: 'dist/api/cjs/diff-builder.js',
@@ -67,13 +67,13 @@ const builderApiConfig = defineConfig({
     external: commonExternal,
     plugins: commonPlugins,
     watch: {
-        include: 'diff-builder/**',
+        include: 'src/diff-builder/**',
     },
 });
 
 // Diff-updater API
 const updaterApiConfig = defineConfig({
-    input: 'diff-updater/index.ts',
+    input: 'src/diff-updater/index.ts',
     output: [
         {
             file: 'dist/api/cjs/diff-updater.js',
@@ -92,7 +92,7 @@ const updaterApiConfig = defineConfig({
     ],
     plugins: commonPlugins,
     watch: {
-        include: 'diff-updater/**',
+        include: 'src/diff-updater/**',
     },
 });
 
