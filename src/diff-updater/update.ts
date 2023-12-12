@@ -26,7 +26,7 @@ interface RcsOperation {
     numberOfLines: number;
 }
 
-enum HttpStatusCode {
+enum GoodHttpStatusCodes {
     NotFound = 404,
     NoContent = 204,
     Ok = 200,
@@ -175,14 +175,20 @@ export const applyPatch = async (
             .split('/')
             .slice(0, -1)
             .join('/');
-        const request = await axios.get(diffPath, { baseURL });
+        const request = await axios.get(
+            diffPath,
+            {
+                baseURL,
+                validateStatus: (status) => Object.values(GoodHttpStatusCodes).includes(status as GoodHttpStatusCodes),
+            },
+        );
 
-        if (request.status === HttpStatusCode.NotFound || request.status === HttpStatusCode.NoContent) {
+        if (request.status === GoodHttpStatusCodes.NotFound || request.status === GoodHttpStatusCodes.NoContent) {
             console.info('Update is not available.');
             return filterContent;
         }
 
-        if (request.status === HttpStatusCode.Ok && request.data === '') {
+        if (request.status === GoodHttpStatusCodes.Ok && request.data === '') {
             console.info('Update is not available.');
             return filterContent;
         }
