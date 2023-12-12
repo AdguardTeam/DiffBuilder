@@ -6,13 +6,6 @@ import json from '@rollup/plugin-json';
 import cleanup from 'rollup-plugin-cleanup';
 import { preserveShebangs } from 'rollup-plugin-preserve-shebangs';
 
-const commonExternal = [
-    'fs',
-    'path',
-    'commander',
-    'crypto',
-];
-
 const commonPlugins = [
     // Allow json resolution
     json(),
@@ -31,73 +24,57 @@ const commonPlugins = [
     cleanup({ comments: ['srcmaps'] }),
 ];
 
-// Diff-builder cli
-const builderCliConfig = defineConfig({
-    input: 'src/diff-builder/cli.ts',
+// CLI for diff-builder
+const cliConfig = defineConfig({
+    input: 'src/bin/cli.ts',
     output: [
         {
-            file: 'dist/diff-builder',
+            file: 'dist/bin/diff-builder',
             name: 'diff-builder',
             format: 'cjs',
             sourcemap: false,
         },
     ],
-    external: commonExternal,
+    external: [
+        'fs',
+        'path',
+        'commander',
+        'crypto',
+    ],
     plugins: commonPlugins.concat([preserveShebangs()]),
     watch: {
-        include: 'src/diff-builder/**',
+        include: 'src/**',
     },
 });
 
-// Diff-builder API
-const builderApiConfig = defineConfig({
-    input: 'src/diff-builder/api.ts',
+// API
+const apiConfig = defineConfig({
+    input: 'src/index.ts',
     output: [
         {
-            file: 'dist/api/cjs/diff-builder.js',
+            file: 'dist/api/cjs/index.js',
             format: 'cjs',
             sourcemap: false,
         },
         {
-            file: 'dist/api/es/diff-builder.js',
-            format: 'esm',
-            sourcemap: false,
-        },
-    ],
-    external: commonExternal,
-    plugins: commonPlugins,
-    watch: {
-        include: 'src/diff-builder/**',
-    },
-});
-
-// Diff-updater API
-const updaterApiConfig = defineConfig({
-    input: 'src/diff-updater/index.ts',
-    output: [
-        {
-            file: 'dist/api/cjs/diff-updater.js',
-            format: 'cjs',
-            sourcemap: false,
-        },
-        {
-            file: 'dist/api/es/diff-updater.js',
+            file: 'dist/api/es/index.js',
             format: 'esm',
             sourcemap: false,
         },
     ],
     external: [
+        'fs',
+        'path',
         'crypto',
         'axios',
     ],
     plugins: commonPlugins,
     watch: {
-        include: 'src/diff-updater/**',
+        include: 'src/**',
     },
 });
 
 export default [
-    builderCliConfig,
-    builderApiConfig,
-    updaterApiConfig,
+    cliConfig,
+    apiConfig,
 ];

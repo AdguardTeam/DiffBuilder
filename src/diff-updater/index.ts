@@ -1,3 +1,7 @@
 import { applyPatch } from './update';
 
-export { applyPatch };
+const DiffUpdater = {
+    applyPatch,
+};
+
+export default DiffUpdater;

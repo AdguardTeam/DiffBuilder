@@ -20,7 +20,7 @@ export enum Resolution {
 /**
  * Parameters for building a diff patch between old and new filters.
  */
-interface BuildDiffParams {
+export interface BuildDiffParams {
     /**
      * The relative path to the old filter.
      */

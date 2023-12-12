@@ -12,8 +12,10 @@
   "typeRoots": [
     "node_modules/@types",
   ],
+  "exclude": [
+    "src/bin"
+  ],
   "include": [
-    "src/diff-builder/build.ts",
-    "src/diff-updater/update.ts"
+    "src"
   ]
 }
