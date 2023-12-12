@@ -89,6 +89,11 @@ export const applyRcsPatch = (
     for (let index = 0; index < patch.length; index += 1) {
         const patchLine = patch[index];
 
+        // Skip empty lines
+        if (patchLine === '') {
+            continue;
+        }
+
         const parsedRcsOperation = parseRcsOperation(patchLine);
         const {
             typeOfOperation,
