@@ -1,8 +1,13 @@
 # Diff Builder
 A tool for generating differential updates for filter lists.
 
+# How to install
+
+`yarn add @adguard/diff-builder`
+
 # How to Use
 
+## CLI
 ```bash
 diff-builder build [-c] [-d <seconds>] [-r <resolution>] [-v] -n <name> -t <expirationPeriod> <old_filter> <new_filter> <path_to_patches>
 ```
@@ -21,38 +26,74 @@ Where:
     - `checksum` - the expected SHA1 checksum of the file after the patch is applied. This is used to validate the patch.
     - `lines` - the number of lines that follow, making up the RCS diff block. Note that `lines` are counted using the same algorithm as used by `wc -l`, essentially counting `\n`.
 
-# Algorithm
+#### Algorithm
 
-## 1. Logging and File Path Resolution
+#### 1. Logging and File Path Resolution
    - Create a logger for verbose output if `verbose` is `true`.
    - Resolve the absolute paths for `oldFilterPath`, `newFilterPath`, and `patchesPath`.
 
-## 2. Read and Split Filter Contents
+#### 2. Read and Split Filter Contents
    - Read the contents of `oldFilterPath` and `newFilterPath` into `oldFile` and `newFile`.
    - Determine the line endings for `oldFile` and `newFile`.
    - Split the contents of `oldFile` and `newFile` into arrays of lines (`oldFileSplitted` and `newFileSplitted`).
 
-## 3. Parse `Diff-Path` Tag
+#### 3. Parse `Diff-Path` Tag
    - Parse the `Diff-Path` tag from `oldFileSplitted` and store it in `oldFileDiffName`.
 
-## 4. Create Patches Folder
+#### 4. Create Patches Folder
    - Create the `patchesPath` directory recursively if it doesn't exist. Log if it's created.
 
-## 5. Delete Outdated Patches
+#### 5. Delete Outdated Patches
    - Scan `patchesPath` and delete outdated patches older than `deleteOlderThanSec`. Log the number of deleted patches.
 
-## 6. Check for File Sameness
+#### 6. Check for File Sameness
    - Compare the checksums of `oldFile` and `newFile`. If they match, log and exit.
 
-## 7. Generate and Save the Diff
+#### 7. Generate and Save the Diff
    - Generate a new patch name based on parameters.
    - Create an empty patch file for the new version if it doesn't exist.
    - Update the `Diff-Path` tag in `newFileSplitted`.
    - Calculate and save the difference between `oldFile` and `newFile` as a patch file.
 
-## 8. Log Patch File Path and Completion
+#### 8. Log Patch File Path and Completion
    - Log the path where the patch file is saved.
    - The process is completed.
 
-# Important
+#### Important
 The `oldFilterPath` is expected to already contain a `Diff-Path` tag.
+
+## API
+
+### CJS
+```javascript
+const { DiffBuilder, DiffUpdater } = require('@adguard/diff-builder');
+
+await DiffBuilder.buildDiff({
+   oldFilterPath,
+   newFilterPath,
+   patchesPath,
+   name,
+   time,
+   resolution,
+   verbose: true,
+});
+
+const updatedFilter = await DiffUpdater.applyPatch(filterUrl, filterContent);
+```
+
+### ESM
+```javascript
+import { DiffBuilder, DiffUpdater } from '@adguard/diff-builder/es';
+
+await DiffBuilder.buildDiff({
+   oldFilterPath,
+   newFilterPath,
+   patchesPath,
+   name,
+   time,
+   resolution,
+   verbose: true,
+});
+
+const updatedFilter = await DiffUpdater.applyPatch(filterUrl, filterContent);
+```
