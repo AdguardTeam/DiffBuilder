@@ -4,14 +4,14 @@
   "repository": "https://github.com/AdguardTeam/DiffBuilder",
   "author": "AdGuard",
   "license": "MIT",
-  "main": "dist/diff-builder",
+  "main": "dist/api/cjs/diff-builder.js",
   "types": "dist/types/diff-builder/build.d.ts",
   "files": [
     "dist",
     "src"
   ],
   "exports": {
-    ".": "./dist/diff-builder",
+    ".": "./dist/api/cjs/diff-builder.js",
     "./diff-builder/cjs": "./dist/api/cjs/diff-builder.js",
     "./diff-builder/es": "./dist/api/es/diff-builder.js",
     "./diff-updater/cjs": "./dist/api/cjs/diff-updater.js",
