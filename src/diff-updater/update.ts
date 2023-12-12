@@ -206,7 +206,7 @@ export const applyPatch = async (
     }
 
     try {
-        updatedFilter = await applyPatch(filterUrl, filterContent);
+        updatedFilter = await applyPatch(filterUrl, updatedFilter);
     } catch (e) {
         console.warn('Error during recursion applying patch: ', e);
     }
