@@ -200,15 +200,13 @@ export const applyPatch = async (
             diffDirective ? diffDirective.checksum : undefined,
         );
     } catch (e) {
-        console.warn('Error during applying patch: ', e);
-
-        return filterContent;
+        throw new Error(`Error during applying patch: ${e}`, { cause: e });
     }
 
     try {
         updatedFilter = await applyPatch(filterUrl, updatedFilter);
     } catch (e) {
-        console.warn('Error during recursion applying patch: ', e);
+        throw new Error(`Error during recursion applying patch: ${e}`, { cause: e });
     }
 
     return updatedFilter;
