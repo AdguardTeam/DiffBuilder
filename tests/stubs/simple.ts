@@ -1,5 +1,3 @@
-import { MOCK_DATE_NOW_MS } from '../mocks';
-
 export const FILTER_1_V_1_0_0 = `! Title: Diff Updates Simple Example List
 ! Version: v1.0.0
 ! Diff-Path: patches/v1.0.0.patch
@@ -18,5 +16,4 @@ a4 3
 ! Diff-Path: patches/v1.0.1.patch
 ||example.com^`;
 
-// eslint-disable-next-line max-len
-export const FILTER_1_V_1_0_1_DIFF_DIRECTIVE = `diff checksum:792ae6af57d3683cc5d81c045a20ea633171b8c0 lines:4 timestamp:${MOCK_DATE_NOW_MS}`;
+export const FILTER_1_V_1_0_1_DIFF_DIRECTIVE = 'diff checksum:792ae6af57d3683cc5d81c045a20ea633171b8c0 lines:4';

@@ -24,11 +24,8 @@ import {
 import { FILTER_1_V_1_0_0, FILTER_1_V_1_0_1, PATCH_1_1_0_0 } from './stubs/simple';
 import { FILTER_2_V_1_0_0, FILTER_2_V_1_0_1, PATCH_2_1_0_0 } from './stubs/validation';
 import { FILTER_3_V_1_0_0, FILTER_3_V_1_0_1, PATCH_3_1_0_0 } from './stubs/name';
-import { MOCK_DATE_NOW_MS } from './mocks';
 
 describe('check diff-builder', () => {
-    Date.now = jest.fn(() => MOCK_DATE_NOW_MS);
-
     it('check detectTypeOfChanges', () => {
         let res = detectTypeOfChanges('+a');
         expect(res).toEqual(TypesOfChanges.Add);
@@ -100,8 +97,7 @@ describe('check diff-builder', () => {
             const diffDirective = createDiffDirective(filter1.split('\n'), filter2, patch);
             patch = diffDirective.concat('\n', patch);
 
-            // eslint-disable-next-line max-len
-            const directive = `diff checksum:792ae6af57d3683cc5d81c045a20ea633171b8c0 lines:4 timestamp:${MOCK_DATE_NOW_MS}`;
+            const directive = 'diff checksum:792ae6af57d3683cc5d81c045a20ea633171b8c0 lines:4';
 
             expect(patch).toEqual(directive.concat('\n').concat(PATCH_1_1_0_0));
         });

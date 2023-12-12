@@ -8,14 +8,9 @@ import { DIFF_PATH_TAG } from '../common/constants';
 import { TypesOfChanges } from '../common/types-of-change';
 import { createDiffDirective } from '../common/diff-directive';
 import { calculateChecksum } from '../common/calculate-checksum';
+import { Resolution, createPatchName } from '../common/patch-name';
 
 const DEFAULT_PATCH_TTL_SECONDS = 60 * 60 * 24 * 7;
-
-export enum Resolution {
-    Hours = 'h',
-    Minutes = 'm',
-    Seconds = 's',
-}
 
 /**
  * Parameters for building a diff patch between old and new filters.
@@ -288,27 +283,6 @@ const deleteOutdatedPatches = async (
 };
 
 /**
- * Generates a creation time timestamp based on the specified resolution.
- *
- * @param resolution The desired resolution for the timestamp (Minutes, Seconds,
- * or Hours).
- *
- * @returns A timestamp representing the creation time based on the specified
- * resolution.
- */
-const generateCreationTime = (resolution: Resolution): number => {
-    switch (resolution) {
-        case Resolution.Minutes:
-            return Math.round(Date.now() / (1000 * 60));
-        case Resolution.Seconds:
-            return Math.round(Date.now() / 1000);
-        case Resolution.Hours:
-        default:
-            return Math.round(Date.now() / (1000 * 60 * 60));
-    }
-};
-
-/**
  * Checks if a patch is empty based on certain criteria.
  *
  * @param patch The patch to be checked.
@@ -415,10 +389,7 @@ export const buildDiff = async (params: BuildDiffParams): Promise<void> => {
     }
 
     // Generate name for new patch
-    const epochTimestamp = generateCreationTime(resolution);
-    const newFileDiffName = resolution && resolution !== Resolution.Hours
-        ? `${name}-${resolution}-${epochTimestamp}-${time}.patch`
-        : `${name}-${epochTimestamp}-${time}.patch`;
+    const newFileDiffName = createPatchName({ name, resolution, time });
 
     if (oldFileDiffName === newFileDiffName) {
         // eslint-disable-next-line max-len

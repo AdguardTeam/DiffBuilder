@@ -5,6 +5,7 @@ import { calculateChecksum } from '../common/calculate-checksum';
 import { DIFF_PATH_TAG } from '../common/constants';
 import { TypesOfChanges } from '../common/types-of-change';
 import { parseDiffDirective } from '../common/diff-directive';
+import { parsePatchName, timestampWithResolution } from '../common/patch-name';
 
 /**
  * Represents an RCS (Revision Control System) operation.
@@ -52,6 +53,14 @@ const parseRcsOperation = (rcsOperation: string): RcsOperation => {
 
     if (typeOfOperation !== TypesOfChanges.Add && typeOfOperation !== TypesOfChanges.Delete) {
         throw new Error(`Operation is not valid: cannot parse type: ${rcsOperation}`);
+    }
+
+    if (Number.isNaN(startIndex)) {
+        throw new Error(`Operation is not valid: cannot parse index: ${rcsOperation}`);
+    }
+
+    if (Number.isNaN(numberOfLines)) {
+        throw new Error(`Operation is not valid: cannot parse number of lines: ${rcsOperation}`);
     }
 
     return {
@@ -147,6 +156,25 @@ export const applyRcsPatch = (
 };
 
 /**
+ * Checks if a patch has expired based on its timestamp and time-to-live (TTL).
+ *
+ * @param diffPath - The path of the patch file.
+ * @returns `true` if the patch has expired, `false` otherwise.
+ */
+const checkPatchExpired = (diffPath: string): boolean => {
+    const {
+        resolution,
+        epochTimestamp,
+        time,
+    } = parsePatchName(diffPath);
+
+    const createdMs = timestampWithResolution(epochTimestamp, resolution);
+    const ttlMs = timestampWithResolution(time, resolution);
+
+    return Date.now() > createdMs + ttlMs;
+};
+
+/**
  * Updates a filter content using an RCS (Revision Control System) patch
  * retrieved from a specified URL.
  *
@@ -165,6 +193,10 @@ export const applyPatch = async (
 
     if (!diffPath) {
         console.warn('Filter is not support diff updates');
+        return filterContent;
+    }
+
+    if (checkPatchExpired(diffPath)) {
         return filterContent;
     }
 
@@ -204,10 +236,10 @@ export const applyPatch = async (
     let updatedFilter: string = '';
 
     try {
-        const diffDirective = parseDiffDirective(filterLines[0]);
+        const diffDirective = parseDiffDirective(patch[0]);
         updatedFilter = applyRcsPatch(
             filterLines,
-            patch,
+            diffDirective ? patch.slice(1) : patch,
             filterContent.endsWith('\r\n') ? '\r\n' : '\n',
             diffDirective ? diffDirective.checksum : undefined,
         );
