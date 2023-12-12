@@ -7,7 +7,7 @@ export declare enum Resolution {
 /**
  * Parameters for building a diff patch between old and new filters.
  */
-interface BuildDiffParams {
+export interface BuildDiffParams {
     /**
      * The relative path to the old filter.
      */
@@ -100,4 +100,3 @@ export declare const findAndUpdateTag: (tagName: string, tagValue: string, filte
  * @param params - Parameters for building the diff patch.
  */
 export declare const buildDiff: (params: BuildDiffParams) => Promise<void>;
-export {};
