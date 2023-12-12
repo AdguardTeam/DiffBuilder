@@ -154,6 +154,7 @@ export const applyRcsPatch = (
  * @param filterContent The original filter content as a string.
  *
  * @returns The updated filter content after applying the patch.
+ * @throws {Error} If there is an error during the patch application process.
  */
 export const applyPatch = async (
     filterUrl: string,
