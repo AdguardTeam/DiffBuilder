@@ -189,19 +189,27 @@ export const applyPatch = async (
         return filterContent;
     }
 
+    let updatedFilter: string = '';
+
     try {
         const diffDirective = parseDiffDirective(filterLines[0]);
-        const updatedFilter = applyRcsPatch(
+        updatedFilter = applyRcsPatch(
             filterLines,
             patch,
             filterContent.endsWith('\r\n') ? '\r\n' : '\n',
             diffDirective ? diffDirective.checksum : undefined,
         );
-
-        return updatedFilter;
     } catch (e) {
         console.warn('Error during applying patch: ', e);
 
         return filterContent;
     }
+
+    try {
+        updatedFilter = await applyPatch(filterUrl, filterContent);
+    } catch (e) {
+        console.warn('Error during recursion applying patch: ', e);
+    }
+
+    return updatedFilter;
 };

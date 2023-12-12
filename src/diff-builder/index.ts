@@ -4,6 +4,7 @@ const DiffBuilder = {
     buildDiff,
 };
 
-export { type BuildDiffParams };
-
-export default DiffBuilder;
+export {
+    type BuildDiffParams,
+    DiffBuilder,
+};

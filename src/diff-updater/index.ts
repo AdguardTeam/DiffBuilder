@@ -4,4 +4,4 @@ const DiffUpdater = {
     applyPatch,
 };
 
-export default DiffUpdater;
+export { DiffUpdater };
