@@ -99,7 +99,8 @@ The `oldFilterPath` is expected to already contain a `Diff-Path` tag.
 ### CJS
 
 ```javascript
-const { DiffBuilder, DiffUpdater } = require('@adguard/diff-builder');
+const { DiffBuilder } = require('@adguard/diff-builder');
+const { DiffUpdater } = require('@adguard/diff-builder/diff-updater');
 
 await DiffBuilder.buildDiff({
    oldFilterPath,
@@ -117,7 +118,8 @@ const updatedFilter = await DiffUpdater.applyPatch(filterUrl, filterContent);
 ### ESM
 
 ```javascript
-import { DiffBuilder, DiffUpdater } from '@adguard/diff-builder/es';
+import { DiffBuilder } from '@adguard/diff-builder/es';
+import { DiffUpdater } from '@adguard/diff-builder/diff-updater/es';
 
 await DiffBuilder.buildDiff({
    oldFilterPath,

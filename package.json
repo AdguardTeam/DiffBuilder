@@ -5,7 +5,7 @@
   "author": "AdGuard",
   "license": "MIT",
   "main": "dist/api/builder/cjs/index.js",
-  "types": "dist/types/index.d.ts",
+  "types": "dist/types/diff-builder/index.d.ts",
   "files": [
     "dist",
     "src"
@@ -18,9 +18,9 @@
   },
   "typesVersions": {
     "*": {
-      "es": [ "dist/types/index.d.ts" ],
-      "diff-updater": [ "dist/types/index.d.ts" ],
-      "diff-updater/es": [ "dist/types/index.d.ts" ]
+      "es": [ "dist/types/diff-builder/index.d.ts" ],
+      "diff-updater": [ "dist/types/diff-updater/index.d.ts" ],
+      "diff-updater/es": [ "dist/types/diff-updater/index.d.ts" ]
     }
   },
   "bin": {
