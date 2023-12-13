@@ -16,11 +16,6 @@ const commonPlugins = [
     // Allow bundling cjs modules (unlike webpack, rollup doesn't understand cjs)
     commonjs({ sourceMap: false }),
 
-    // Allow node_modules resolution, so you can use 'external' to control
-    // which external modules to include in the bundle
-    // https://github.com/rollup/rollup-plugin-node-resolve#usage
-    resolve({ preferBuiltins: false }),
-
     cleanup({ comments: ['srcmaps'] }),
 ];
 
@@ -41,23 +36,29 @@ const cliConfig = defineConfig({
         'commander',
         'crypto',
     ],
-    plugins: commonPlugins.concat([preserveShebangs()]),
+    plugins: commonPlugins.concat([
+        // Allow node_modules resolution, so you can use 'external' to control
+        // which external modules to include in the bundle
+        // https://github.com/rollup/rollup-plugin-node-resolve#usage
+        resolve({ preferBuiltins: false }),
+        preserveShebangs(),
+    ]),
     watch: {
         include: 'src/**',
     },
 });
 
-// API
-const apiConfig = defineConfig({
-    input: 'src/index.ts',
+// diff-builder API
+const builderApiConfig = defineConfig({
+    input: 'src/diff-builder/index.ts',
     output: [
         {
-            file: 'dist/api/cjs/index.js',
+            file: 'dist/api/builder/cjs/index.js',
             format: 'cjs',
             sourcemap: false,
         },
         {
-            file: 'dist/api/es/index.js',
+            file: 'dist/api/builder/es/index.js',
             format: 'esm',
             sourcemap: false,
         },
@@ -68,13 +69,52 @@ const apiConfig = defineConfig({
         'crypto',
         'axios',
     ],
-    plugins: commonPlugins,
+    plugins: commonPlugins.concat([
+        // Allow node_modules resolution, so you can use 'external' to control
+        // which external modules to include in the bundle
+        // https://github.com/rollup/rollup-plugin-node-resolve#usage
+        resolve({ preferBuiltins: false }),
+    ]),
     watch: {
         include: 'src/**',
+    },
+    treeshake: {
+        moduleSideEffects: false,
+    },
+});
+
+// diff-updater API
+const updaterApiConfig = defineConfig({
+    input: 'src/diff-updater/index.ts',
+    output: [
+        {
+            file: 'dist/api/updater/cjs/index.js',
+            format: 'cjs',
+            sourcemap: false,
+        },
+        {
+            file: 'dist/api/updater/es/index.js',
+            format: 'esm',
+            sourcemap: false,
+        },
+    ],
+    external: [
+        'crypto',
+        'axios',
+    ],
+    plugins: commonPlugins.concat([
+        resolve({ browser: true }),
+    ]),
+    watch: {
+        include: 'src/**',
+    },
+    treeshake: {
+        moduleSideEffects: false,
     },
 });
 
 export default [
     cliConfig,
-    apiConfig,
+    builderApiConfig,
+    updaterApiConfig,
 ];

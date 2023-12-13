@@ -10,11 +10,14 @@ const MS_IN_HOURS = MS_IN_MINUTES * 60;
 /**
  * Enumeration representing different resolutions for timestamp generation.
  */
-export enum Resolution {
-    Hours = 'h',
-    Minutes = 'm',
-    Seconds = 's',
-}
+export const Resolution = {
+    Hours: 'h',
+    Minutes: 'm',
+    Seconds: 's',
+} as const;
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export type Resolution = typeof Resolution[keyof typeof Resolution];
 
 /**
  * Throws an error for unexpected values.

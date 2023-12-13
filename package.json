@@ -4,21 +4,23 @@
   "repository": "https://github.com/AdguardTeam/DiffBuilder",
   "author": "AdGuard",
   "license": "MIT",
-  "main": "dist/api/cjs/index.js",
+  "main": "dist/api/builder/cjs/index.js",
   "types": "dist/types/index.d.ts",
   "files": [
     "dist",
     "src"
   ],
   "exports": {
-    ".": "./dist/api/cjs/index.js",
-    "./es": "./dist/api/es/index.js"
+    ".": "./dist/api/builder/cjs/index.js",
+    "./es": "./dist/api/builder/es/index.js",
+    "./diff-updater": "./dist/api/updater/cjs/index.js",
+    "./diff-updater/es": "./dist/api/updater/es/index.js"
   },
   "typesVersions": {
     "*": {
-      "es": [
-        "dist/types/index.d.ts"
-      ]
+      "es": [ "dist/types/index.d.ts" ],
+      "diff-updater": [ "dist/types/index.d.ts" ],
+      "diff-updater/es": [ "dist/types/index.d.ts" ]
     }
   },
   "bin": {

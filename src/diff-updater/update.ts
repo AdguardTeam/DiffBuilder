@@ -28,11 +28,14 @@ interface RcsOperation {
     numberOfLines: number;
 }
 
-enum GoodHttpStatusCodes {
-    NotFound = 404,
-    NoContent = 204,
-    Ok = 200,
-}
+const GoodHttpStatusCodes = {
+    NotFound: 404,
+    NoContent: 204,
+    Ok: 200,
+} as const;
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+type GoodHttpStatusCodes = typeof GoodHttpStatusCodes[keyof typeof GoodHttpStatusCodes];
 
 /**
  * Parses an RCS (Revision Control System) operation string into an object
