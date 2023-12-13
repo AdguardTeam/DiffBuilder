@@ -195,7 +195,8 @@ export const applyPatch = async (
         return filterContent;
     }
 
-    if (checkPatchExpired(diffPath)) {
+    // If patch not expired yet - return filter content without changes.
+    if (!checkPatchExpired(diffPath)) {
         return filterContent;
     }
 
