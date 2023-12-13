@@ -292,7 +292,15 @@ const deleteOutdatedPatches = async (
 };
 
 /**
- * Checks if a patch is empty based on certain criteria.
+ * In the current algorithm, before creating a patch, we need to update the
+ * value of the Diff-Path tag in the new filter. This is done to ensure that
+ * changes to this value are also reflected in the patch. Consequently, these
+ * changes can be applied to the old filter from the patch.
+ *
+ * If there are no differences between the old and new filters, the patch will
+ * only contain changes to this tag. Therefore, it is necessary to check that the
+ * patch is not empty, meaning it contains lines other than those related to the
+ * Diff-Path changes.
  *
  * @param patch The patch to be checked.
  *

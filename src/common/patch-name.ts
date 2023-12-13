@@ -80,7 +80,7 @@ export const timestampWithResolution = (timestamp: number, resolution: Resolutio
 /**
  * An interface representing the components of a patch name.
  */
-export interface PatchName {
+interface PatchName {
     name: string;
     resolution: Resolution;
     time: number;
@@ -89,7 +89,7 @@ export interface PatchName {
 /**
  * An interface representing the parsed components of a patch name.
  */
-export interface ParsedPatchName extends PatchName {
+interface ParsedPatchName extends PatchName {
     epochTimestamp: number;
 }
 
@@ -122,7 +122,9 @@ export const createPatchName = (options: PatchName): string => {
  * @throws Error if the patch name cannot be parsed.
  */
 export const parsePatchName = (patchName: string): ParsedPatchName => {
-    const parts = patchName.split('-');
+    const parts = patchName
+        .slice(0, -FILE_EXTENSION.length)
+        .split('-');
 
     // Long variant
     if (parts.length === 4) {
@@ -141,7 +143,7 @@ export const parsePatchName = (patchName: string): ParsedPatchName => {
             name,
             resolution: parsedResolution as Resolution,
             epochTimestamp: Number.parseInt(parsedEpochTimestamp, 10),
-            time: Number.parseInt(parsedTime.slice(0, FILE_EXTENSION.length), 10),
+            time: Number.parseInt(parsedTime, 10),
         };
     }
 
@@ -158,7 +160,7 @@ export const parsePatchName = (patchName: string): ParsedPatchName => {
             name,
             resolution,
             epochTimestamp: Number.parseInt(parsedEpochTimestamp, 10),
-            time: Number.parseInt(parsedTime.slice(0, FILE_EXTENSION.length), 10),
+            time: Number.parseInt(parsedTime, 10),
         };
     }
 

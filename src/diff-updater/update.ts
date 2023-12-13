@@ -28,14 +28,20 @@ interface RcsOperation {
     numberOfLines: number;
 }
 
-const GoodHttpStatusCodes = {
+/**
+ * If the differential update is not available the server may signal about that
+ * by returning one of the following responses.
+ *
+ * @see @link Step 3 in https://github.com/ameshkov/diffupdates?tab=readme-ov-file#algorithm
+ */
+const AcceptableHttpStatusCodes = {
     NotFound: 404,
     NoContent: 204,
     Ok: 200,
 } as const;
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
-type GoodHttpStatusCodes = typeof GoodHttpStatusCodes[keyof typeof GoodHttpStatusCodes];
+type AcceptableHttpStatusCodes = typeof AcceptableHttpStatusCodes[keyof typeof AcceptableHttpStatusCodes];
 
 /**
  * Parses an RCS (Revision Control System) operation string into an object
@@ -194,7 +200,7 @@ export const applyPatch = async (
     const diffPath = parseTag(DIFF_PATH_TAG, filterLines);
 
     if (!diffPath) {
-        console.warn('Filter is not support diff updates');
+        console.warn('Filter does not support diff updates');
         return filterContent;
     }
 
@@ -215,16 +221,19 @@ export const applyPatch = async (
             diffPath,
             {
                 baseURL,
-                validateStatus: (status) => Object.values(GoodHttpStatusCodes).includes(status as GoodHttpStatusCodes),
+                validateStatus: (status) => {
+                    return Object.values(AcceptableHttpStatusCodes).includes(status as AcceptableHttpStatusCodes);
+                },
             },
         );
 
-        if (request.status === GoodHttpStatusCodes.NotFound || request.status === GoodHttpStatusCodes.NoContent) {
+        if (request.status === AcceptableHttpStatusCodes.NotFound
+            || request.status === AcceptableHttpStatusCodes.NoContent) {
             console.info('Update is not available.');
             return filterContent;
         }
 
-        if (request.status === GoodHttpStatusCodes.Ok && request.data === '') {
+        if (request.status === AcceptableHttpStatusCodes.Ok && request.data === '') {
             console.info('Update is not available.');
             return filterContent;
         }

@@ -15,6 +15,7 @@ A tool for generating differential updates for filter lists.
 ## How to Use
 
 ## CLI
+
 ```bash
 diff-builder build [-c] [-d <seconds>] [-r <resolution>] [-v] -n <name> -t <expirationPeriod> <old_filter> <new_filter> <path_to_patches>
 ```
@@ -96,6 +97,7 @@ The `oldFilterPath` is expected to already contain a `Diff-Path` tag.
 ## API
 
 ### CJS
+
 ```javascript
 const { DiffBuilder, DiffUpdater } = require('@adguard/diff-builder');
 
@@ -113,6 +115,7 @@ const updatedFilter = await DiffUpdater.applyPatch(filterUrl, filterContent);
 ```
 
 ### ESM
+
 ```javascript
 import { DiffBuilder, DiffUpdater } from '@adguard/diff-builder/es';
 
