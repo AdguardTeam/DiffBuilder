@@ -81,6 +81,8 @@ describe('check diff-updater', () => {
     });
 
     describe('applyPatch', () => {
+        const basePath = 'http://localhost:3000';
+
         beforeAll(async () => {
             await server.start();
         });
@@ -89,8 +91,37 @@ describe('check diff-updater', () => {
             await server.stop();
         });
 
-        it('applies simple patches', async () => {
-            const basePath = 'http://localhost:3000';
+        const cases = [
+            ['applies one simple patch', './fixtures/1/filter_v1.0.0.txt', './fixtures/1/filter_v1.0.1.txt'],
+            ['applies patches in a row', './fixtures/2/filter_v1.0.0.txt', './fixtures/2/filter_v1.0.2.txt'],
+            ['applies patches with checksum', './fixtures/3/filter_v1.0.0.txt', './fixtures/3/filter_v1.0.2.txt'],
+        ];
+
+        it.each(cases)('case: "%s"', async (
+            testName,
+            oldestFilterPathName,
+            newestFilterPathName,
+        ) => {
+            const oldestFilterUrl = new URL(oldestFilterPathName, basePath).toString();
+            const oldestFilter = await fs.promises.readFile(
+                path.resolve(__dirname, oldestFilterPathName),
+                'utf-8',
+            );
+
+            const latestFilter = await fs.promises.readFile(
+                path.resolve(__dirname, newestFilterPathName),
+                'utf-8',
+            );
+
+            const updatedFilter = await applyPatch(oldestFilterUrl, oldestFilter);
+            expect(updatedFilter).toStrictEqual(latestFilter);
+        });
+
+        it('not applies not expired patches', async () => {
+            const originalDateNow = Date.now;
+
+            // To test that all patches not expires yet
+            Date.now = jest.fn(() => 1700038800000);
 
             const oldestFilterPathName = './fixtures/1/filter_v1.0.0.txt';
             const oldestFilterUrl = new URL(oldestFilterPathName, basePath).toString();
@@ -99,37 +130,24 @@ describe('check diff-updater', () => {
                 'utf-8',
             );
 
-            const latestFilter = await fs.promises.readFile(
-                path.resolve(__dirname, './fixtures/1/filter_v1.0.2.txt'),
-                'utf-8',
-            );
-
             const updatedFilter = await applyPatch(oldestFilterUrl, oldestFilter);
-            expect(updatedFilter).toStrictEqual(latestFilter);
+            expect(updatedFilter).toStrictEqual(oldestFilter);
+
+            Date.now = originalDateNow;
         });
 
-        it('applies patches with checksum', async () => {
-            const basePath = 'http://localhost:3000';
-
-            const oldestFilterPathName = './fixtures/2/filter_v1.0.0.txt';
+        it('throws error when checksums are not equal', async () => {
+            const oldestFilterPathName = './fixtures/4/filter_v1.0.0.txt';
             const oldestFilterUrl = new URL(oldestFilterPathName, basePath).toString();
             const oldestFilter = await fs.promises.readFile(
                 path.resolve(__dirname, oldestFilterPathName),
                 'utf-8',
             );
 
-            const latestFilter = await fs.promises.readFile(
-                path.resolve(__dirname, './fixtures/2/filter_v1.0.2.txt'),
-                'utf-8',
-            );
-
-            const updatedFilter = await applyPatch(oldestFilterUrl, oldestFilter);
-            expect(updatedFilter).toStrictEqual(latestFilter);
+            await expect(
+                // eslint-disable-next-line @typescript-eslint/return-await
+                async () => await applyPatch(oldestFilterUrl, oldestFilter),
+            ).rejects.toThrowError('Checksums are not equal.');
         });
-
-        // TODO: Test for expires
-        // TODO: Test for invalid checksum
-        // TODO: Test for only 1 patch
-        // TODO: Test for 404, 204, 200 statuses
     });
 });
