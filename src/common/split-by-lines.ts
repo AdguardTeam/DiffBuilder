@@ -8,5 +8,5 @@
  */
 export const splitByLines = (s: string): string[] => {
     // It will save end of lines inside splitted strings.
-    return s.split(/^(?!$)/m);
+    return s.split(/(?<=\r?\n)/);
 };

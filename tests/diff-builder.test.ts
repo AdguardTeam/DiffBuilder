@@ -24,7 +24,7 @@ import {
 import { FILTER_1_V_1_0_0, FILTER_1_V_1_0_1, PATCH_1_1_0_0 } from './stubs/simple';
 import { FILTER_2_V_1_0_0, FILTER_2_V_1_0_1, PATCH_2_1_0_0 } from './stubs/validation';
 import { FILTER_3_V_1_0_0, FILTER_3_V_1_0_1, PATCH_3_1_0_0 } from './stubs/name';
-import { FILTER_WITHOUT_EMPTY_LINE, FILTER_WITH_EMPTY_LINE } from './stubs/new-lines';
+import { FILTER_WITHOUT_EMPTY_LINE, FILTER_WITH_EMPTY_LINE, FILTER_WITH_SEVERAL_EMPTY_LINES } from './stubs/new-lines';
 import { splitByLines } from '../src/common/split-by-lines';
 
 describe('check diff-builder', () => {
@@ -56,10 +56,16 @@ describe('check diff-builder', () => {
 
     it('check splitByLines', () => {
         let splitted = splitByLines(FILTER_WITH_EMPTY_LINE);
+        expect(splitted.length).toBe(2);
         expect(splitted[splitted.length - 1].endsWith('\n')).toBeTruthy();
 
         splitted = splitByLines(FILTER_WITHOUT_EMPTY_LINE);
+        expect(splitted.length).toBe(2);
         expect(splitted[splitted.length - 1].endsWith('\n')).toBeFalsy();
+
+        splitted = splitByLines(FILTER_WITH_SEVERAL_EMPTY_LINES);
+        expect(splitted.length).toBe(3);
+        expect(splitted[splitted.length - 1].endsWith('\n')).toBeTruthy();
     });
 
     it('check findAndUpdateTag', () => {
