@@ -1,4 +1,29 @@
 /**
+ * @file
+ * This file describes how to work with the patch file name.
+ *
+ * The Diff-Path also encodes additional information in the file name:
+ *
+ * ${patchName}[-${resolution}]-${epochTimestamp}-${expirationPeriod}.patch[#${resourceName}].
+ *
+ * `patchName` - The name of the patch file, an arbitrary string to identify
+ * the patch.
+ * `epochTimestamp` - The epoch timestamp when the patch was generated (the unit
+ * of that timestamp depends on the resolution, see below).
+ * `expirationPeriod` - The expiration time for the diff update (the unit depends
+ * on the resolution, see below).
+ * `resolution` - An optional field that specifies the resolution for both
+ * `expirationPeriod` and `epochTimestamp`. It can be either 'h' (hours),
+ * 'm' (minutes), or 's' (seconds). If `resolution` is not specified,
+ * it is assumed to be 'h'.
+ * `resourceName` - The name of the resource that is being patched. This is used
+ * to support batch updates, see the [Batch Updates](https://github.com/ameshkov/diffupdates?tab=readme-ov-file#batch-updates)
+ * section for more details.
+ *
+ * @see {@link https://github.com/ameshkov/diffupdates?tab=readme-ov-file#-diff-path}
+ */
+
+/**
  * The file extension used for patch files.
  */
 const FILE_EXTENSION = '.patch';
@@ -97,6 +122,7 @@ interface ParsedPatchName extends PatchName {
  * Creates a patch name based on the provided options.
  *
  * @param options - The options for creating the patch name.
+ *
  * @returns A string representing the generated patch name.
  */
 export const createPatchName = (options: PatchName): string => {
@@ -107,18 +133,26 @@ export const createPatchName = (options: PatchName): string => {
     } = options;
 
     const epochTimestamp = generateCreationTime(resolution);
-    const newFileDiffName = resolution && resolution !== Resolution.Hours
-        ? `${name}-${resolution}-${epochTimestamp}-${time}${FILE_EXTENSION}`
-        : `${name}-${epochTimestamp}-${time}${FILE_EXTENSION}`;
 
-    return newFileDiffName;
+    const newFileDiffName = [name];
+
+    if (resolution && resolution !== Resolution.Hours) {
+        newFileDiffName.push(resolution);
+    }
+
+    newFileDiffName.push(epochTimestamp.toString());
+    newFileDiffName.push(time.toString());
+
+    return newFileDiffName.join('-').concat(FILE_EXTENSION);
 };
 
 /**
  * Parses a patch name into its components.
  *
  * @param patchName - The patch name to parse.
+ *
  * @returns An object containing the parsed components of the patch name.
+ *
  * @throws Error if the patch name cannot be parsed.
  */
 export const parsePatchName = (patchName: string): ParsedPatchName => {
