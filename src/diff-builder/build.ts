@@ -13,6 +13,8 @@ import { splitByLines } from '../common/split-by-lines';
 
 const DEFAULT_PATCH_TTL_SECONDS = 60 * 60 * 24 * 7;
 
+const NEW_LINE_INFO = '\\ No newline at end of file';
+
 /**
  * Parameters for building a diff patch between old and new filters.
  */
@@ -144,13 +146,13 @@ export const createPatch = (oldFile: string, newFile: string): string => {
         return [];
     };
 
-    hunks.forEach((hunk) => {
+    hunks.forEach((hunk, hunkIdx) => {
         const { oldStart, lines } = hunk;
 
         let fileIndexScanned = oldStart;
 
         // Library will print some debug info so we need to skip this line.
-        const filteredLines = lines.filter((l) => l !== '\\ No newline at end of file');
+        const filteredLines = lines.filter((l) => l !== NEW_LINE_INFO);
 
         for (let index = 0; index < filteredLines.length; index += 1) {
             const line = filteredLines[index];
@@ -196,6 +198,12 @@ export const createPatch = (oldFile: string, newFile: string): string => {
                 // Move scanned index
                 fileIndexScanned += index + 1;
             }
+        }
+
+        // Check if we need to insert new line to the patch or not
+        if ((lines.filter((l) => l === NEW_LINE_INFO).length > 0 && lines[lines.length - 1] !== NEW_LINE_INFO)
+            || (lines.filter((l) => l === NEW_LINE_INFO).length === 0 && hunkIdx === hunks.length - 1)) {
+            outDiff[outDiff.length - 1] = outDiff[outDiff.length - 1].concat('\n');
         }
     });
 

@@ -41,18 +41,16 @@ import {
 import { server } from './server';
 import { splitByLines } from '../src/common/split-by-lines';
 
-const originalDateNow = Date.now;
-
 describe('check diff-updater', () => {
     describe('applyRcsPatch', () => {
         const cases = [
             [FILTER_1_V_1_0_0, FILTER_1_V_1_0_1, PATCH_1_1_0_0, FILTER_1_V_1_0_1_DIFF_DIRECTIVE],
-            // [FILTER_2_V_1_0_0, FILTER_2_V_1_0_1, PATCH_2_1_0_0, FILTER_2_V_1_0_1_DIFF_DIRECTIVE],
-            // [FILTER_3_V_1_0_0, FILTER_3_V_1_0_1, PATCH_3_1_0_0, FILTER_3_V_1_0_1_DIFF_DIRECTIVE],
-            // [FILE_1, FILE_2, FILE_1_2_PATCH, FILE_2_DIFF_DIRECTIVE],
-            // [FILE_3, FILE_4, FILE_3_4_PATCH, FILE_4_DIFF_DIRECTIVE],
-            // [FILE_5, FILE_6, FILE_5_6_PATCH, FILE_6_DIFF_DIRECTIVE],
-            // [FILE_7, FILE_8, FILE_7_8_PATCH, FILE_8_DIFF_DIRECTIVE],
+            [FILTER_2_V_1_0_0, FILTER_2_V_1_0_1, PATCH_2_1_0_0, FILTER_2_V_1_0_1_DIFF_DIRECTIVE],
+            [FILTER_3_V_1_0_0, FILTER_3_V_1_0_1, PATCH_3_1_0_0, FILTER_3_V_1_0_1_DIFF_DIRECTIVE],
+            [FILE_1, FILE_2, FILE_1_2_PATCH, FILE_2_DIFF_DIRECTIVE],
+            [FILE_3, FILE_4, FILE_3_4_PATCH, FILE_4_DIFF_DIRECTIVE],
+            [FILE_5, FILE_6, FILE_5_6_PATCH, FILE_6_DIFF_DIRECTIVE],
+            [FILE_7, FILE_8, FILE_7_8_PATCH, FILE_8_DIFF_DIRECTIVE],
         ];
 
         it.each(cases)('apply rcs patch: "%s"', (
@@ -74,7 +72,7 @@ describe('check diff-updater', () => {
             const parsedDiffDirective = parseDiffDirective(diffDirective);
             updatedFilter = applyRcsPatch(
                 filterLines,
-                parsedDiffDirective ? patchLines.slice(1) : patchLines,
+                patchLines,
                 parsedDiffDirective ? parsedDiffDirective.checksum : undefined,
             );
 
@@ -85,8 +83,6 @@ describe('check diff-updater', () => {
     describe('applyPatch', () => {
         beforeAll(async () => {
             await server.start();
-
-            Date.now = originalDateNow;
         });
 
         afterAll(async () => {
@@ -94,9 +90,6 @@ describe('check diff-updater', () => {
         });
 
         it('applies simple patches', async () => {
-            // To test that all patches expires
-            Date.now = jest.fn(() => 1700038800000);
-
             const basePath = 'http://localhost:3000';
 
             const oldestFilterPathName = './fixtures/1/filter_v1.0.0.txt';
@@ -116,9 +109,6 @@ describe('check diff-updater', () => {
         });
 
         it('applies patches with checksum', async () => {
-            // To test that all patches expires
-            Date.now = jest.fn(() => 1700038800000);
-
             const basePath = 'http://localhost:3000';
 
             const oldestFilterPathName = './fixtures/2/filter_v1.0.0.txt';

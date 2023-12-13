@@ -34,7 +34,8 @@ The named is the mother of all things.
 a11 3
 They both may be called deep and profound.
 Deeper and more profound,
-The door of all subtleties!`;
+The door of all subtleties!
+`;
 
 export const FILE_2_DIFF_DIRECTIVE = 'diff checksum:6c5cf1b40522bca8f37fd3b2963b543691f80e6d lines:8';
 
@@ -106,7 +107,8 @@ a13 4
 added13
 added14
 added15
-added16`;
+added16
+`;
 
 export const FILE_4_DIFF_DIRECTIVE = 'diff checksum:a07db16bbb507198c14e79ed0b51580d23054cc2 lines:25';
 
@@ -168,7 +170,8 @@ added7
 a8 1
 added8
 a9 1
-added9`;
+added9
+`;
 
 export const FILE_6_DIFF_DIRECTIVE = 'diff checksum:7c425c14f12deb44e657f5cdefd54ef27bfa2716 lines:17';
 
@@ -208,8 +211,7 @@ append3
 append4
 append5
 append6
-append7
-`;
+append7`;
 
 export const FILE_7_8_PATCH = `a14 7
 append1
@@ -220,4 +222,4 @@ append5
 append6
 append7`;
 
-export const FILE_8_DIFF_DIRECTIVE = 'diff checksum:31aaea86448ec1ebc1fd6443901cc75537f43d11 lines:7';
+export const FILE_8_DIFF_DIRECTIVE = 'diff checksum:72125a0eb17a2f8177efa01ae83e1b93437802c1 lines:7';
