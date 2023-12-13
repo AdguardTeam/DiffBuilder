@@ -24,6 +24,8 @@ import {
 import { FILTER_1_V_1_0_0, FILTER_1_V_1_0_1, PATCH_1_1_0_0 } from './stubs/simple';
 import { FILTER_2_V_1_0_0, FILTER_2_V_1_0_1, PATCH_2_1_0_0 } from './stubs/validation';
 import { FILTER_3_V_1_0_0, FILTER_3_V_1_0_1, PATCH_3_1_0_0 } from './stubs/name';
+import { FILTER_WITHOUT_EMPTY_LINE, FILTER_WITH_EMPTY_LINE } from './stubs/new-lines';
+import { splitByLines } from '../src/common/split-by-lines';
 
 describe('check diff-builder', () => {
     it('check detectTypeOfChanges', () => {
@@ -45,20 +47,28 @@ describe('check diff-builder', () => {
     it('check parseTag', () => {
         const content = FILTER_1_V_1_0_0;
 
-        const version = parseTag('Version', content.split('\n'));
+        const version = parseTag('Version', splitByLines(content));
         expect(version).toEqual('v1.0.0');
 
-        const diffPath = parseTag('Diff-Path', content.split('\n'));
+        const diffPath = parseTag('Diff-Path', splitByLines(content));
         expect(diffPath).toEqual('patches/v1.0.0.patch');
+    });
+
+    it('check splitByLines', () => {
+        let splitted = splitByLines(FILTER_WITH_EMPTY_LINE);
+        expect(splitted[splitted.length - 1].endsWith('\n')).toBeTruthy();
+
+        splitted = splitByLines(FILTER_WITHOUT_EMPTY_LINE);
+        expect(splitted[splitted.length - 1].endsWith('\n')).toBeFalsy();
     });
 
     it('check findAndUpdateTag', () => {
         const content = FILTER_1_V_1_0_0;
 
-        const filterWithUpdatedVersion = findAndUpdateTag('Version', 'v9.9.9', content.split('\n'));
+        const filterWithUpdatedVersion = findAndUpdateTag('Version', 'v9.9.9', splitByLines(content));
         expect(filterWithUpdatedVersion.join('\n')).toEqual(content.replace('! Version: v1.0.0', '! Version: v9.9.9'));
 
-        const filterWithUpdatedDiffPath = findAndUpdateTag('Diff-Path', 'patches/v9.9.9.patch', content.split('\n'));
+        const filterWithUpdatedDiffPath = findAndUpdateTag('Diff-Path', 'patches/v9.9.9.patch', splitByLines(content));
         expect(filterWithUpdatedDiffPath.join('\n')).toEqual(
             content.replace('! Diff-Path: patches/v1.0.0.patch', '! Diff-Path: patches/v9.9.9.patch'),
         );
@@ -94,7 +104,7 @@ describe('check diff-builder', () => {
 
             let patch = createPatch(filter1, filter2);
 
-            const diffDirective = createDiffDirective(filter1.split('\n'), filter2, patch);
+            const diffDirective = createDiffDirective(splitByLines(filter1), filter2, patch);
             patch = diffDirective.concat('\n', patch);
 
             const directive = 'diff checksum:792ae6af57d3683cc5d81c045a20ea633171b8c0 lines:4';

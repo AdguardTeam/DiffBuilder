@@ -1,14 +1,12 @@
 export const FILTER_1_V_1_0_0 = `! Title: Diff Updates Simple Example List
 ! Version: v1.0.0
 ! Diff-Path: patches/v1.0.0.patch
-||example.org^
-`;
+||example.org^`;
 
 export const FILTER_1_V_1_0_1 = `! Title: Diff Updates Simple Example List
 ! Version: v1.0.1
 ! Diff-Path: patches/v1.0.1.patch
-||example.com^
-`;
+||example.com^`;
 
 export const PATCH_1_1_0_0 = `d2 3
 a4 3

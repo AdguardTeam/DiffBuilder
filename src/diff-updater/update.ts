@@ -6,6 +6,7 @@ import { DIFF_PATH_TAG } from '../common/constants';
 import { TypesOfChanges } from '../common/types-of-change';
 import { parseDiffDirective } from '../common/diff-directive';
 import { parsePatchName, timestampWithResolution } from '../common/patch-name';
+import { splitByLines } from '../common/split-by-lines';
 
 /**
  * Represents an RCS (Revision Control System) operation.
@@ -75,7 +76,6 @@ const parseRcsOperation = (rcsOperation: string): RcsOperation => {
  *
  * @param filterContent An array of strings representing the original filter content.
  * @param patch An array of strings representing the RCS patch to apply.
- * @param endOfFile A string representing the end of file character.
  * @param checksum An optional checksum to validate the updated filter content.
  * @returns The updated filter content after applying the patch.
  * @throws If the provided checksum doesn't match the calculated checksum.
@@ -83,7 +83,6 @@ const parseRcsOperation = (rcsOperation: string): RcsOperation => {
 export const applyRcsPatch = (
     filterContent: string[],
     patch: string[],
-    endOfFile: string,
     checksum?: string,
 ): string => {
     // Make a copy
@@ -142,7 +141,7 @@ export const applyRcsPatch = (
         }
     }
 
-    const updatedFilter = lines.join(endOfFile);
+    const updatedFilter = lines.join('');
 
     if (checksum) {
         const c = calculateChecksum(updatedFilter);
@@ -188,7 +187,7 @@ export const applyPatch = async (
     filterUrl: string,
     filterContent: string,
 ): Promise<string> => {
-    const filterLines = filterContent.split(/\r?\n/);
+    const filterLines = splitByLines(filterContent);
     const diffPath = parseTag(DIFF_PATH_TAG, filterLines);
 
     if (!diffPath) {
@@ -226,7 +225,7 @@ export const applyPatch = async (
             return filterContent;
         }
 
-        patch = request.data.split(/\r?\n/);
+        patch = splitByLines(request.data);
     } catch (e) {
         console.error('Cannot load patch due to: ', e);
 
@@ -239,8 +238,8 @@ export const applyPatch = async (
         const diffDirective = parseDiffDirective(patch[0]);
         updatedFilter = applyRcsPatch(
             filterLines,
+            // Remove diff directive if it exists in the patch.
             diffDirective ? patch.slice(1) : patch,
-            filterContent.endsWith('\r\n') ? '\r\n' : '\n',
             diffDirective ? diffDirective.checksum : undefined,
         );
     } catch (e) {

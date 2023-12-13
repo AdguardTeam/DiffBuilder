@@ -18,7 +18,6 @@ const start = (port = 3000): Promise<void> => {
     return new Promise<void>((resolve, reject) => {
         try {
             serverInstance = app.listen(port, () => {
-                console.log(`Server is running at http://localhost:${port}`);
                 resolve();
             });
         } catch (e) {
@@ -39,7 +38,6 @@ const stop = (): Promise<void> => {
                 if (err) {
                     reject(err);
                 } else {
-                    console.log('Server has been stopped');
                     resolve();
                 }
             });

@@ -9,6 +9,7 @@ import { TypesOfChanges } from '../common/types-of-change';
 import { createDiffDirective } from '../common/diff-directive';
 import { calculateChecksum } from '../common/calculate-checksum';
 import { Resolution, createPatchName } from '../common/patch-name';
+import { splitByLines } from '../common/split-by-lines';
 
 const DEFAULT_PATCH_TTL_SECONDS = 60 * 60 * 24 * 7;
 
@@ -210,7 +211,7 @@ export const createPatch = (oldFile: string, newFile: string): string => {
  * @returns Created tag in `! ${tagName}: ${value}` format.
  */
 const createTag = (tagName: string, value: string): string => {
-    return `! ${tagName}: ${value}`;
+    return `! ${tagName}: ${value}\n`;
 };
 
 /**
@@ -290,7 +291,7 @@ const deleteOutdatedPatches = async (
  * @returns Returns `true` if the patch is empty, otherwise `false`.
  */
 const checkIfPatchIsEmpty = (patch: string): boolean => {
-    const lines = patch.split('\n');
+    const lines = splitByLines(patch);
 
     if (lines.length === 3
         && lines[0] === 'd1 1'
@@ -358,13 +359,9 @@ export const buildDiff = async (params: BuildDiffParams): Promise<void> => {
     const oldFile = await fs.promises.readFile(prevListPath, { encoding: 'utf-8' });
     let newFile = await fs.promises.readFile(newListPath, { encoding: 'utf-8' });
 
-    // End of files
-    const endOfOldFile = /\r\n$/gm.test(oldFile) ? '\r\n' : '\n';
-    const endOfNewFile = /\r\n$/gm.test(newFile) ? '\r\n' : '\n';
-
     // Splitted filters' content
-    const oldFileSplitted = oldFile.split(endOfOldFile);
-    let newFileSplitted = newFile.split(endOfNewFile);
+    const oldFileSplitted = splitByLines(oldFile);
+    let newFileSplitted = splitByLines(newFile);
 
     const oldFileDiffName = parseTag(DIFF_PATH_TAG, oldFileSplitted);
 
@@ -417,7 +414,7 @@ export const buildDiff = async (params: BuildDiffParams): Promise<void> => {
         path.join(pathToPatchesRelativeToNewFilter, newFileDiffName),
         newFileSplitted,
     );
-    newFile = newFileSplitted.join(endOfNewFile);
+    newFile = newFileSplitted.join('');
 
     // We cannot save diff, if diff in old file doesn't exists.
     if (!oldFileDiffName) {
