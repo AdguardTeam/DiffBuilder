@@ -18,9 +18,15 @@
   },
   "typesVersions": {
     "*": {
-      "es": [ "dist/types/diff-builder/index.d.ts" ],
-      "diff-updater": [ "dist/types/diff-updater/index.d.ts" ],
-      "diff-updater/es": [ "dist/types/diff-updater/index.d.ts" ]
+      "es": [
+        "dist/types/diff-builder/index.d.ts"
+      ],
+      "diff-updater": [
+        "dist/types/diff-updater/index.d.ts"
+      ],
+      "diff-updater/es": [
+        "dist/types/diff-updater/index.d.ts"
+      ]
     }
   },
   "bin": {
@@ -36,8 +42,10 @@
     "test": "jest"
   },
   "dependencies": {
+    "@types/crypto-js": "^4.2.1",
     "axios": "^1.6.0",
     "commander": "^11.1.0",
+    "crypto-js": "^4.2.0",
     "diff": "5.1.0"
   },
   "devDependencies": {

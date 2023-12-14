@@ -34,7 +34,6 @@ const cliConfig = defineConfig({
         'fs',
         'path',
         'commander',
-        'crypto',
     ],
     plugins: commonPlugins.concat([
         // Allow node_modules resolution, so you can use 'external' to control
@@ -99,7 +98,6 @@ const updaterApiConfig = defineConfig({
         },
     ],
     external: [
-        'crypto',
         'axios',
     ],
     plugins: commonPlugins.concat([
