@@ -1053,6 +1053,7 @@ const splitByLines = (s) => {
 
 const DEFAULT_PATCH_TTL_SECONDS = 60 * 60 * 24 * 7;
 const NEW_LINE_INFO = '\\ No newline at end of file';
+const PATCH_EXTENSION = '.patch';
 /**
  * Detects type of diff changes: add or delete.
  *
@@ -1193,7 +1194,6 @@ const findAndUpdateTag = (tagName, tagValue, filterContent) => {
  * @returns Returns number of deleted patches.
  */
 const deleteOutdatedPatches = async (pathToPatches, deleteOlderThanSeconds) => {
-    const PATCH_EXTENSION = '.patch';
     const files = await fs.promises.readdir(pathToPatches);
     const tasksToDeleteFiles = [];
     for (const file of files) {
@@ -1349,3 +1349,4 @@ const DiffBuilder = {
 };
 
 exports.DiffBuilder = DiffBuilder;
+exports.PATCH_EXTENSION = PATCH_EXTENSION;

@@ -1,5 +1,5 @@
-import { type BuildDiffParams } from './build';
+import { type BuildDiffParams, PATCH_EXTENSION } from './build';
 declare const DiffBuilder: {
     buildDiff: (params: BuildDiffParams) => Promise<void>;
 };
-export { type BuildDiffParams, DiffBuilder, };
+export { DiffBuilder, type BuildDiffParams, PATCH_EXTENSION, };

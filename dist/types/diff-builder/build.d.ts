@@ -1,5 +1,6 @@
 import { TypesOfChanges } from '../common/types-of-change';
 import { Resolution } from '../common/patch-name';
+export declare const PATCH_EXTENSION = ".patch";
 /**
  * Parameters for building a diff patch between old and new filters.
  */
