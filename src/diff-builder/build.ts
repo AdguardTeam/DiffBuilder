@@ -15,6 +15,8 @@ const DEFAULT_PATCH_TTL_SECONDS = 60 * 60 * 24 * 7;
 
 const NEW_LINE_INFO = '\\ No newline at end of file';
 
+export const PATCH_EXTENSION = '.patch';
+
 /**
  * Parameters for building a diff patch between old and new filters.
  */
@@ -264,7 +266,6 @@ const deleteOutdatedPatches = async (
     pathToPatches: string,
     deleteOlderThanSeconds: number,
 ): Promise<number> => {
-    const PATCH_EXTENSION = '.patch';
     const files = await fs.promises.readdir(pathToPatches);
     const tasksToDeleteFiles: Promise<void>[] = [];
     for (const file of files) {
