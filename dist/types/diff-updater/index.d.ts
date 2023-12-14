@@ -1,4 +1,4 @@
 declare const DiffUpdater: {
-    applyPatch: (filterUrl: string, filterContent: string) => Promise<string>;
+    applyPatch: (filterUrl: string, filterContent: string) => Promise<string | null>;
 };
-export default DiffUpdater;
+export { DiffUpdater };

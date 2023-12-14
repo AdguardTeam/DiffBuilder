@@ -1,4 +1,25 @@
 /**
+ * @file
+ * This file describes how to work with the `diff` directive.
+ *
+ * Format:
+ * ```
+ * diff name:[name] checksum:[checksum] lines:[lines].
+ * ```
+ *
+ * - `name`: Name of the corresponding filter list. Mandatory when a resource
+ * name is specified in the list.
+ * - `checksum`: The expected SHA1 checksum of the file after the patch
+ * is applied. Used to validate the patch.
+ * - `lines`: The number of lines that follow, making up the RCS diff block.
+ * Line count is determined using the same algorithm as `wc -l`, counting
+ * newline characters '\n'.
+ *
+ * The `diff` directive is optional. If not specified, the patch is applied without validation.
+ *
+ * @see @link [Diff Files Format](https://github.com/ameshkov/diffupdates?tab=readme-ov-file#diff-files-format)
+ */
+/**
  * Represents a Diff Directive, containing information about the patch.
  */
 interface DiffDirective {
@@ -14,10 +35,6 @@ interface DiffDirective {
      * The number of lines affected by the diff operation.
      */
     lines: number;
-    /**
-     * The timestamp of creating patch in milliseconds.
-     */
-    timestampMs: number;
 }
 /**
  * Creates `diff` directive with `Diff-Name` from filter (if found) and with

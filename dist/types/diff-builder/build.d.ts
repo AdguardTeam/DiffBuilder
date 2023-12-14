@@ -1,9 +1,5 @@
 import { TypesOfChanges } from '../common/types-of-change';
-export declare enum Resolution {
-    Hours = "h",
-    Minutes = "m",
-    Seconds = "s"
-}
+import { Resolution } from '../common/patch-name';
 /**
  * Parameters for building a diff patch between old and new filters.
  */
