@@ -17,9 +17,10 @@ app.use('/fixtures', express.static(root));
 const start = (port = 3000): Promise<void> => {
     return new Promise<void>((resolve, reject) => {
         try {
-            serverInstance = app.listen(port, () => {
-                resolve();
-            });
+            serverInstance = app.listen(
+                port,
+                () => { resolve(); },
+            );
         } catch (e) {
             reject(e);
         }

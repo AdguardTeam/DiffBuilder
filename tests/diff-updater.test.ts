@@ -136,6 +136,43 @@ describe('check diff-updater', () => {
             Date.now = originalDateNow;
         });
 
+        it('return null when filter does not support diff updates', async () => {
+            const oldestFilterPathName = './fixtures/5/filter_v1.0.0.txt';
+            const oldestFilterUrl = new URL(oldestFilterPathName, basePath).toString();
+            const oldestFilter = await fs.promises.readFile(
+                path.resolve(__dirname, oldestFilterPathName),
+                'utf-8',
+            );
+
+            const result = await applyPatch(oldestFilterUrl, oldestFilter);
+
+            expect(result).toBeNull();
+        });
+
+        it('return last applied patch when filter stop support diff updates in some new version', async () => {
+            const oldestFilterPathName = './fixtures/6/filter_v1.0.0.txt';
+            const middleFilterPathName = './fixtures/6/filter_v1.0.1.txt';
+            const newestFilterPathName = './fixtures/6/filter_v1.0.2.txt';
+
+            const oldestFilter = await fs.promises.readFile(
+                path.resolve(__dirname, oldestFilterPathName),
+                'utf-8',
+            );
+            const middleFilter = await fs.promises.readFile(
+                path.resolve(__dirname, middleFilterPathName),
+                'utf-8',
+            );
+            const newestFilter = await fs.promises.readFile(
+                path.resolve(__dirname, newestFilterPathName),
+                'utf-8',
+            );
+
+            const oldestFilterUrl = new URL(oldestFilterPathName, basePath).toString();
+            const updatedFilter = await applyPatch(oldestFilterUrl, oldestFilter);
+            expect(updatedFilter).toStrictEqual(middleFilter);
+            expect(updatedFilter).not.toBe(newestFilter);
+        });
+
         it('throws error when checksums are not equal', async () => {
             const oldestFilterPathName = './fixtures/4/filter_v1.0.0.txt';
             const oldestFilterUrl = new URL(oldestFilterPathName, basePath).toString();
@@ -148,6 +185,26 @@ describe('check diff-updater', () => {
                 // eslint-disable-next-line @typescript-eslint/return-await
                 async () => await applyPatch(oldestFilterUrl, oldestFilter),
             ).rejects.toThrowError('Checksums are not equal.');
+        });
+
+        it('throws error when network request failed', async () => {
+            const oldestFilterPathName = './fixtures/1/filter_v1.0.0.txt';
+            const oldestFilterUrl = new URL(oldestFilterPathName, basePath).toString();
+            const oldestFilter = await fs.promises.readFile(
+                path.resolve(__dirname, oldestFilterPathName),
+                'utf-8',
+            );
+
+            await server.stop();
+
+            await expect(
+                // eslint-disable-next-line @typescript-eslint/return-await
+                async () => await applyPatch(oldestFilterUrl, oldestFilter),
+            ).rejects.toThrowError('Error during network request');
+
+            // Start server again to prevent error when it will be stopped in
+            // afterAll handler.
+            await server.start();
         });
     });
 });
