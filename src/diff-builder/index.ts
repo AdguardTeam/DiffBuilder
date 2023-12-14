@@ -1,10 +1,15 @@
-import { buildDiff, type BuildDiffParams } from './build';
+import {
+    buildDiff,
+    type BuildDiffParams,
+    PATCH_EXTENSION,
+} from './build';
 
 const DiffBuilder = {
     buildDiff,
 };
 
 export {
-    type BuildDiffParams,
     DiffBuilder,
+    type BuildDiffParams,
+    PATCH_EXTENSION,
 };
