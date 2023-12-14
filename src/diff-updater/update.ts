@@ -183,28 +183,30 @@ const checkPatchExpired = (diffPath: string): boolean => {
 };
 
 /**
- * Updates a filter content using an RCS (Revision Control System) patch
- * retrieved from a specified URL.
+ * Updates a filter's content using an RCS (Revision Control System) patch retrieved from a specified URL.
  *
- * @param filterUrl The URL where the RCS patch can be obtained.
+ * @param filterUrl The URL from which the RCS patch can be obtained.
  * @param filterContent The original filter content as a string.
  *
- * @returns The updated filter content after applying the patch.
- * @throws {Error} If there is an error during the patch application process.
+ * @returns The updated filter content after applying the patch,
+ * or null if there is no Diff-Path tag in the filter.
+ *
+ * @throws {Error} If there is an error during the patch application process
+ * or during network request.
  */
 export const applyPatch = async (
     filterUrl: string,
     filterContent: string,
-): Promise<string> => {
+): Promise<string | null> => {
     const filterLines = splitByLines(filterContent);
     const diffPath = parseTag(DIFF_PATH_TAG, filterLines);
 
     if (!diffPath) {
         console.warn('Filter does not support diff updates');
-        return filterContent;
+        return null;
     }
 
-    // If patch not expired yet - return filter content without changes.
+    // If the patch has not expired yet, return the filter content without changes.
     if (!checkPatchExpired(diffPath)) {
         return filterContent;
     }
@@ -212,7 +214,7 @@ export const applyPatch = async (
     let patch: string[] = [];
 
     try {
-        // Cut last part of path
+        // Remove the last part of the path
         const baseURL = filterUrl
             .split('/')
             .slice(0, -1)
@@ -240,9 +242,7 @@ export const applyPatch = async (
 
         patch = splitByLines(request.data);
     } catch (e) {
-        console.error('Cannot load patch due to: ', e);
-
-        return filterContent;
+        throw new Error(`Error during network request: ${e}`, { cause: e });
     }
 
     let updatedFilter: string = '';
@@ -251,19 +251,26 @@ export const applyPatch = async (
         const diffDirective = parseDiffDirective(patch[0]);
         updatedFilter = applyRcsPatch(
             filterLines,
-            // Remove diff directive if it exists in the patch.
+            // Remove the diff directive if it exists in the patch.
             diffDirective ? patch.slice(1) : patch,
             diffDirective ? diffDirective.checksum : undefined,
         );
     } catch (e) {
-        throw new Error(`Error during applying patch: ${e}`, { cause: e });
+        throw new Error(`Error during applying the patch: ${e}`, { cause: e });
     }
 
     try {
-        updatedFilter = await applyPatch(filterUrl, updatedFilter);
-    } catch (e) {
-        throw new Error(`Error during recursion applying patch: ${e}`, { cause: e });
-    }
+        const recursiveUpdatedFilter = await applyPatch(filterUrl, updatedFilter);
+        // It can be null if the filter dropped support for Diff-Path in new versions.
+        if (recursiveUpdatedFilter === null) {
+            // Then we return the filter with the last successfully applied patch.
+            return updatedFilter;
+        }
 
-    return updatedFilter;
+        return recursiveUpdatedFilter;
+    } catch (e) {
+        // If we catch an error during the recursive update, we will return
+        // the last successfully applied patch.
+        return updatedFilter;
+    }
 };
