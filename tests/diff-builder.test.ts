@@ -24,11 +24,10 @@ import {
 import { FILTER_1_V_1_0_0, FILTER_1_V_1_0_1, PATCH_1_1_0_0 } from './stubs/simple';
 import { FILTER_2_V_1_0_0, FILTER_2_V_1_0_1, PATCH_2_1_0_0 } from './stubs/validation';
 import { FILTER_3_V_1_0_0, FILTER_3_V_1_0_1, PATCH_3_1_0_0 } from './stubs/name';
-import { MOCK_DATE_NOW_MS } from './mocks';
+import { FILTER_WITHOUT_EMPTY_LINE, FILTER_WITH_EMPTY_LINE, FILTER_WITH_SEVERAL_EMPTY_LINES } from './stubs/new-lines';
+import { splitByLines } from '../src/common/split-by-lines';
 
 describe('check diff-builder', () => {
-    Date.now = jest.fn(() => MOCK_DATE_NOW_MS);
-
     it('check detectTypeOfChanges', () => {
         let res = detectTypeOfChanges('+a');
         expect(res).toEqual(TypesOfChanges.Add);
@@ -42,27 +41,41 @@ describe('check diff-builder', () => {
 
         const checksum = calculateChecksum(content);
 
-        expect(checksum).toEqual('792ae6af57d3683cc5d81c045a20ea633171b8c0');
+        expect(checksum).toEqual('be09384422b8d7f20da517d1245360125868f0b9');
     });
 
     it('check parseTag', () => {
         const content = FILTER_1_V_1_0_0;
 
-        const version = parseTag('Version', content.split('\n'));
-        expect(version).toEqual('v1.0.0');
+        const version = parseTag('Version', splitByLines(content));
+        expect(version).toEqual('v1.0.0\n');
 
-        const diffPath = parseTag('Diff-Path', content.split('\n'));
-        expect(diffPath).toEqual('patches/v1.0.0.patch');
+        const diffPath = parseTag('Diff-Path', splitByLines(content));
+        expect(diffPath).toEqual('patches/v1.0.0.patch\n');
+    });
+
+    it('check splitByLines', () => {
+        let splitted = splitByLines(FILTER_WITH_EMPTY_LINE);
+        expect(splitted.length).toBe(2);
+        expect(splitted[splitted.length - 1].endsWith('\n')).toBeTruthy();
+
+        splitted = splitByLines(FILTER_WITHOUT_EMPTY_LINE);
+        expect(splitted.length).toBe(2);
+        expect(splitted[splitted.length - 1].endsWith('\n')).toBeFalsy();
+
+        splitted = splitByLines(FILTER_WITH_SEVERAL_EMPTY_LINES);
+        expect(splitted.length).toBe(3);
+        expect(splitted[splitted.length - 1].endsWith('\n')).toBeTruthy();
     });
 
     it('check findAndUpdateTag', () => {
         const content = FILTER_1_V_1_0_0;
 
-        const filterWithUpdatedVersion = findAndUpdateTag('Version', 'v9.9.9', content.split('\n'));
-        expect(filterWithUpdatedVersion.join('\n')).toEqual(content.replace('! Version: v1.0.0', '! Version: v9.9.9'));
+        const filterWithUpdatedVersion = findAndUpdateTag('Version', 'v9.9.9', splitByLines(content));
+        expect(filterWithUpdatedVersion.join('')).toEqual(content.replace('! Version: v1.0.0', '! Version: v9.9.9'));
 
-        const filterWithUpdatedDiffPath = findAndUpdateTag('Diff-Path', 'patches/v9.9.9.patch', content.split('\n'));
-        expect(filterWithUpdatedDiffPath.join('\n')).toEqual(
+        const filterWithUpdatedDiffPath = findAndUpdateTag('Diff-Path', 'patches/v9.9.9.patch', splitByLines(content));
+        expect(filterWithUpdatedDiffPath.join('')).toEqual(
             content.replace('! Diff-Path: patches/v1.0.0.patch', '! Diff-Path: patches/v9.9.9.patch'),
         );
 
@@ -97,11 +110,10 @@ describe('check diff-builder', () => {
 
             let patch = createPatch(filter1, filter2);
 
-            const diffDirective = createDiffDirective(filter1.split('\n'), filter2, patch);
+            const diffDirective = createDiffDirective(splitByLines(filter1), filter2, patch);
             patch = diffDirective.concat('\n', patch);
 
-            // eslint-disable-next-line max-len
-            const directive = `diff checksum:792ae6af57d3683cc5d81c045a20ea633171b8c0 lines:4 timestamp:${MOCK_DATE_NOW_MS}`;
+            const directive = 'diff checksum:be09384422b8d7f20da517d1245360125868f0b9 lines:4';
 
             expect(patch).toEqual(directive.concat('\n').concat(PATCH_1_1_0_0));
         });
