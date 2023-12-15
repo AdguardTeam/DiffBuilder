@@ -487,7 +487,7 @@ const parseTag = (tagName, rules) => {
         const search = `! ${tagName}: `;
         const indexOfSearch = rule.indexOf(search);
         if (indexOfSearch >= 0) {
-            return rule.substring(indexOfSearch + search.length);
+            return rule.substring(indexOfSearch + search.length).trim();
         }
     }
     return null;
@@ -1315,6 +1315,9 @@ const buildDiff = async (params) => {
     const pathToPatchesRelativeToNewFilter = path.relative(path.dirname(newFilterPath), pathToPatches);
     newFileSplitted = await findAndUpdateTag(DIFF_PATH_TAG, path.join(pathToPatchesRelativeToNewFilter, newFileDiffName), newFileSplitted);
     newFile = newFileSplitted.join('');
+    // After checking that patch is not empty we can save path to new patch
+    // in the new file.
+    await fs.promises.writeFile(newListPath, newFile);
     // We cannot save diff, if diff in old file doesn't exists.
     if (!oldFileDiffName) {
         log('Not found "Diff-Path" in the old filter. Patch can not be created.');
@@ -1328,9 +1331,6 @@ const buildDiff = async (params) => {
         log('No changes detected between old and new files. Patch would not be created.');
         return;
     }
-    // After checking that patch is not empty we can save path to new patch
-    // in the new file.
-    await fs.promises.writeFile(newListPath, newFile);
     // Add checksum to patch if requested
     if (checksum) {
         const diffDirective = createDiffDirective(oldFileSplitted, newFile, patch);

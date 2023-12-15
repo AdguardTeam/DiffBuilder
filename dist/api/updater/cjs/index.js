@@ -23,7 +23,7 @@ const parseTag = (tagName, rules) => {
         const search = `! ${tagName}: `;
         const indexOfSearch = rule.indexOf(search);
         if (indexOfSearch >= 0) {
-            return rule.substring(indexOfSearch + search.length);
+            return rule.substring(indexOfSearch + search.length).trim();
         }
     }
     return null;
