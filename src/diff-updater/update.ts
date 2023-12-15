@@ -10,6 +10,29 @@ import { splitByLines } from '../common/split-by-lines';
 import { createLogger } from '../common/create-logger';
 
 /**
+ * Interface describing the parameters of the applyPatch function.
+ */
+interface ApplyPatchParams {
+    /**
+     * The URL from which the RCS patch can be obtained.
+     * @type {string}
+     */
+    filterUrl: string;
+
+    /**
+     * The original filter content as a string.
+     * @type {string}
+     */
+    filterContent: string;
+
+    /**
+     * Whether to enable verbose mode.
+     * @type {boolean}
+     */
+    verbose?: boolean;
+}
+
+/**
  * Represents an RCS (Revision Control System) operation.
  */
 interface RcsOperation {
@@ -186,10 +209,7 @@ const checkPatchExpired = (diffPath: string): boolean => {
 /**
  * Updates a filter's content using an RCS (Revision Control System) patch retrieved from a specified URL.
  *
- * @param filterUrl The URL from which the RCS patch can be obtained.
- * @param filterContent The original filter content as a string.
- * @param callStack The number of recursive calls.
- * @param verbose Verbose mode.
+ * @param params @see {@link ApplyPatchParams}.
  *
  * @returns The updated filter content after applying the patch,
  * or null if there is no Diff-Path tag in the filter.
@@ -197,95 +217,103 @@ const checkPatchExpired = (diffPath: string): boolean => {
  * @throws {Error} If there is an error during the patch application process
  * or during network request.
  */
-export const applyPatch = async (
-    filterUrl: string,
-    filterContent: string,
-    callStack = 0,
-    verbose = false,
-): Promise<string | null> => {
-    const filterLines = splitByLines(filterContent);
-    const diffPath = parseTag(DIFF_PATH_TAG, filterLines);
-
-    const log = createLogger(verbose);
-
-    if (!diffPath) {
-        return null;
-    }
-
-    // If the patch has not expired yet, return the filter content without changes.
-    if (!checkPatchExpired(diffPath)) {
-        return filterContent;
-    }
-
-    let patch: string[] = [];
-
-    try {
-        // Remove the last part of the path
-        const baseURL = filterUrl
-            .split('/')
-            .slice(0, -1)
-            .join('/');
-        const request = await axios.get(
-            diffPath,
-            {
-                baseURL,
-                validateStatus: (status) => {
-                    return Object.values(AcceptableHttpStatusCodes).includes(status as AcceptableHttpStatusCodes);
-                },
-            },
-        );
-
-        if (request.status === AcceptableHttpStatusCodes.NotFound
-            || request.status === AcceptableHttpStatusCodes.NoContent) {
-            if (callStack === 0) {
-                log('Update is not available.');
-            }
-            return filterContent;
-        }
-
-        if (request.status === AcceptableHttpStatusCodes.Ok && request.data === '') {
-            if (callStack === 0) {
-                log('Update is not available.');
-            }
-            return filterContent;
-        }
-
-        patch = splitByLines(request.data);
-    } catch (e) {
-        throw new Error(`Error during network request: ${e}`, { cause: e });
-    }
-
-    let updatedFilter: string = '';
-
-    try {
-        const diffDirective = parseDiffDirective(patch[0]);
-        updatedFilter = applyRcsPatch(
-            filterLines,
-            // Remove the diff directive if it exists in the patch.
-            diffDirective ? patch.slice(1) : patch,
-            diffDirective ? diffDirective.checksum : undefined,
-        );
-    } catch (e) {
-        throw new Error(`Error during applying the patch: ${e}`, { cause: e });
-    }
-
-    try {
-        const recursiveUpdatedFilter = await applyPatch(
+export const applyPatch = async (params: ApplyPatchParams): Promise<string | null> => {
+    // Wrapper to hide the callStack parameter from the user.
+    const applyPatchWrapper = async (innerParams: ApplyPatchParams & { callStack: number }): Promise<string | null> => {
+        const {
             filterUrl,
-            updatedFilter,
-            callStack + 1,
-            verbose,
-        );
-        // It can be null if the filter dropped support for Diff-Path in new versions.
-        if (recursiveUpdatedFilter === null) {
-            // Then we return the filter with the last successfully applied patch.
+            filterContent,
+            verbose = false,
+            callStack,
+        } = innerParams;
+
+        const filterLines = splitByLines(filterContent);
+        const diffPath = parseTag(DIFF_PATH_TAG, filterLines);
+
+        const log = createLogger(verbose);
+
+        if (!diffPath) {
+            return null;
+        }
+
+        // If the patch has not expired yet, return the filter content without changes.
+        if (!checkPatchExpired(diffPath)) {
+            return filterContent;
+        }
+
+        let patch: string[] = [];
+
+        try {
+            // Remove the last part of the path
+            const baseURL = filterUrl
+                .split('/')
+                .slice(0, -1)
+                .join('/');
+            const request = await axios.get(
+                diffPath,
+                {
+                    baseURL,
+                    validateStatus: (status) => {
+                        return Object.values(AcceptableHttpStatusCodes).includes(status as AcceptableHttpStatusCodes);
+                    },
+                },
+            );
+
+            if (request.status === AcceptableHttpStatusCodes.NotFound
+                || request.status === AcceptableHttpStatusCodes.NoContent) {
+                if (callStack === 0) {
+                    log('Update is not available.');
+                }
+                return filterContent;
+            }
+
+            if (request.status === AcceptableHttpStatusCodes.Ok && request.data === '') {
+                if (callStack === 0) {
+                    log('Update is not available.');
+                }
+                return filterContent;
+            }
+
+            patch = splitByLines(request.data);
+        } catch (e) {
+            throw new Error(`Error during network request: ${e}`, { cause: e });
+        }
+
+        let updatedFilter: string = '';
+
+        try {
+            const diffDirective = parseDiffDirective(patch[0]);
+            updatedFilter = applyRcsPatch(
+                filterLines,
+                // Remove the diff directive if it exists in the patch.
+                diffDirective ? patch.slice(1) : patch,
+                diffDirective ? diffDirective.checksum : undefined,
+            );
+        } catch (e) {
+            throw new Error(`Error during applying the patch: ${e}`, { cause: e });
+        }
+
+        try {
+            const recursiveUpdatedFilter = await applyPatchWrapper({
+                filterUrl,
+                filterContent: updatedFilter,
+                callStack: callStack + 1,
+                verbose,
+            });
+
+            // It can be null if the filter dropped support for Diff-Path in new versions.
+            if (recursiveUpdatedFilter === null) {
+                // Then we return the filter with the last successfully applied patch.
+                return updatedFilter;
+            }
+
+            return recursiveUpdatedFilter;
+        } catch (e) {
+            // If we catch an error during the recursive update, we will return
+            // the last successfully applied patch.
             return updatedFilter;
         }
+    };
 
-        return recursiveUpdatedFilter;
-    } catch (e) {
-        // If we catch an error during the recursive update, we will return
-        // the last successfully applied patch.
-        return updatedFilter;
-    }
+    return applyPatchWrapper(Object.assign(params, { callStack: 0 }));
 };

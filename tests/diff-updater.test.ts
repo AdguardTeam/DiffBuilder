@@ -113,7 +113,10 @@ describe('check diff-updater', () => {
                 'utf-8',
             );
 
-            const updatedFilter = await applyPatch(oldestFilterUrl, oldestFilter);
+            const updatedFilter = await applyPatch({
+                filterUrl: oldestFilterUrl,
+                filterContent: oldestFilter,
+            });
             expect(updatedFilter).toStrictEqual(latestFilter);
         });
 
@@ -130,7 +133,10 @@ describe('check diff-updater', () => {
                 'utf-8',
             );
 
-            const updatedFilter = await applyPatch(oldestFilterUrl, oldestFilter);
+            const updatedFilter = await applyPatch({
+                filterUrl: oldestFilterUrl,
+                filterContent: oldestFilter,
+            });
             expect(updatedFilter).toStrictEqual(oldestFilter);
 
             Date.now = originalDateNow;
@@ -144,7 +150,10 @@ describe('check diff-updater', () => {
                 'utf-8',
             );
 
-            const result = await applyPatch(oldestFilterUrl, oldestFilter);
+            const result = await applyPatch({
+                filterUrl: oldestFilterUrl,
+                filterContent: oldestFilter,
+            });
 
             expect(result).toBeNull();
         });
@@ -168,7 +177,10 @@ describe('check diff-updater', () => {
             );
 
             const oldestFilterUrl = new URL(oldestFilterPathName, basePath).toString();
-            const updatedFilter = await applyPatch(oldestFilterUrl, oldestFilter);
+            const updatedFilter = await applyPatch({
+                filterUrl: oldestFilterUrl,
+                filterContent: oldestFilter,
+            });
             expect(updatedFilter).toStrictEqual(middleFilter);
             expect(updatedFilter).not.toBe(newestFilter);
         });
@@ -183,7 +195,10 @@ describe('check diff-updater', () => {
 
             await expect(
                 // eslint-disable-next-line @typescript-eslint/return-await
-                async () => await applyPatch(oldestFilterUrl, oldestFilter),
+                async () => await applyPatch({
+                    filterUrl: oldestFilterUrl,
+                    filterContent: oldestFilter,
+                }),
             ).rejects.toThrowError('Checksums are not equal.');
         });
 
@@ -199,7 +214,10 @@ describe('check diff-updater', () => {
 
             await expect(
                 // eslint-disable-next-line @typescript-eslint/return-await
-                async () => await applyPatch(oldestFilterUrl, oldestFilter),
+                async () => await applyPatch({
+                    filterUrl: oldestFilterUrl,
+                    filterContent: oldestFilter,
+                }),
             ).rejects.toThrowError('Error during network request');
 
             // Start server again to prevent error when it will be stopped in
