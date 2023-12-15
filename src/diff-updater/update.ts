@@ -12,7 +12,7 @@ import { createLogger } from '../common/create-logger';
 /**
  * Interface describing the parameters of the applyPatch function.
  */
-interface ApplyPatchParams {
+export interface ApplyPatchParams {
     /**
      * The URL from which the RCS patch can be obtained.
      * @type {string}
