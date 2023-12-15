@@ -1,4 +1,24 @@
 /**
+ * Interface describing the parameters of the applyPatch function.
+ */
+export interface ApplyPatchParams {
+    /**
+     * The URL from which the RCS patch can be obtained.
+     * @type {string}
+     */
+    filterUrl: string;
+    /**
+     * The original filter content as a string.
+     * @type {string}
+     */
+    filterContent: string;
+    /**
+     * Whether to enable verbose mode.
+     * @type {boolean}
+     */
+    verbose?: boolean;
+}
+/**
  * Applies an RCS (Revision Control System) patch to a filter content.
  *
  * @param filterContent An array of strings representing the original filter content.
@@ -11,10 +31,7 @@ export declare const applyRcsPatch: (filterContent: string[], patch: string[], c
 /**
  * Updates a filter's content using an RCS (Revision Control System) patch retrieved from a specified URL.
  *
- * @param filterUrl The URL from which the RCS patch can be obtained.
- * @param filterContent The original filter content as a string.
- * @param callStack The number of recursive calls.
- * @param verbose Verbose mode.
+ * @param params @see {@link ApplyPatchParams}.
  *
  * @returns The updated filter content after applying the patch,
  * or null if there is no Diff-Path tag in the filter.
@@ -22,4 +39,4 @@ export declare const applyRcsPatch: (filterContent: string[], patch: string[], c
  * @throws {Error} If there is an error during the patch application process
  * or during network request.
  */
-export declare const applyPatch: (filterUrl: string, filterContent: string, callStack?: number, verbose?: boolean) => Promise<string | null>;
+export declare const applyPatch: (params: ApplyPatchParams) => Promise<string | null>;

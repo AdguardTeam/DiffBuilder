@@ -1,4 +1,5 @@
+import { type ApplyPatchParams } from './update';
 declare const DiffUpdater: {
-    applyPatch: (filterUrl: string, filterContent: string, callStack?: number, verbose?: boolean) => Promise<string | null>;
+    applyPatch: (params: ApplyPatchParams) => Promise<string | null>;
 };
-export { DiffUpdater };
+export { DiffUpdater, type ApplyPatchParams, };
