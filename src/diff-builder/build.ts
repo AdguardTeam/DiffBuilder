@@ -433,6 +433,13 @@ export const buildDiff = async (params: BuildDiffParams): Promise<void> => {
     );
     newFile = newFileSplitted.join('');
 
+    // After checking that patch is not empty we can save path to new patch
+    // in the new file.
+    await fs.promises.writeFile(
+        newListPath,
+        newFile,
+    );
+
     // We cannot save diff, if diff in old file doesn't exists.
     if (!oldFileDiffName) {
         log('Not found "Diff-Path" in the old filter. Patch can not be created.');
@@ -448,13 +455,6 @@ export const buildDiff = async (params: BuildDiffParams): Promise<void> => {
         log('No changes detected between old and new files. Patch would not be created.');
         return;
     }
-
-    // After checking that patch is not empty we can save path to new patch
-    // in the new file.
-    await fs.promises.writeFile(
-        newListPath,
-        newFile,
-    );
 
     // Add checksum to patch if requested
     if (checksum) {
