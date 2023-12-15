@@ -8,7 +8,7 @@ var axios = require('axios');
  * @param tagName Filter header tag name.
  * @param rules Lines of filter rules text.
  *
- * @returns Value of specified header tag or null if tag not found.
+ * @returns Trimmed value of specified header tag or null if tag not found.
  */
 const parseTag = (tagName, rules) => {
     // Lines of filter metadata to parse
@@ -647,6 +647,22 @@ const splitByLines = (s) => {
 };
 
 /**
+ * Creates a logger function with the specified "verbose" setting.
+ *
+ * @param verbose A flag indicating whether to output messages.
+ *
+ * @returns Function for logging messages.
+ */
+const createLogger = (verbose) => {
+    return (message) => {
+        if (verbose) {
+            // eslint-disable-next-line no-console
+            console.log(message);
+        }
+    };
+};
+
+/**
  * If the differential update is not available the server may signal about that
  * by returning one of the following responses.
  *
@@ -767,6 +783,8 @@ const checkPatchExpired = (diffPath) => {
  *
  * @param filterUrl The URL from which the RCS patch can be obtained.
  * @param filterContent The original filter content as a string.
+ * @param callStack The number of recursive calls.
+ * @param verbose Verbose mode.
  *
  * @returns The updated filter content after applying the patch,
  * or null if there is no Diff-Path tag in the filter.
@@ -774,11 +792,11 @@ const checkPatchExpired = (diffPath) => {
  * @throws {Error} If there is an error during the patch application process
  * or during network request.
  */
-const applyPatch = async (filterUrl, filterContent) => {
+const applyPatch = async (filterUrl, filterContent, callStack = 0, verbose = false) => {
     const filterLines = splitByLines(filterContent);
     const diffPath = parseTag(DIFF_PATH_TAG, filterLines);
+    const log = createLogger(verbose);
     if (!diffPath) {
-        console.warn('Filter does not support diff updates');
         return null;
     }
     // If the patch has not expired yet, return the filter content without changes.
@@ -800,11 +818,15 @@ const applyPatch = async (filterUrl, filterContent) => {
         });
         if (request.status === AcceptableHttpStatusCodes.NotFound
             || request.status === AcceptableHttpStatusCodes.NoContent) {
-            console.info('Update is not available.');
+            if (callStack === 0) {
+                log('Update is not available.');
+            }
             return filterContent;
         }
         if (request.status === AcceptableHttpStatusCodes.Ok && request.data === '') {
-            console.info('Update is not available.');
+            if (callStack === 0) {
+                log('Update is not available.');
+            }
             return filterContent;
         }
         patch = splitByLines(request.data);
@@ -823,7 +845,7 @@ const applyPatch = async (filterUrl, filterContent) => {
         throw new Error(`Error during applying the patch: ${e}`, { cause: e });
     }
     try {
-        const recursiveUpdatedFilter = await applyPatch(filterUrl, updatedFilter);
+        const recursiveUpdatedFilter = await applyPatch(filterUrl, updatedFilter, callStack + 1, verbose);
         // It can be null if the filter dropped support for Diff-Path in new versions.
         if (recursiveUpdatedFilter === null) {
             // Then we return the filter with the last successfully applied patch.

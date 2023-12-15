@@ -470,7 +470,7 @@ function structuredPatch(oldFileName, newFileName, oldStr, newStr, oldHeader, ne
  * @param tagName Filter header tag name.
  * @param rules Lines of filter rules text.
  *
- * @returns Value of specified header tag or null if tag not found.
+ * @returns Trimmed value of specified header tag or null if tag not found.
  */
 const parseTag = (tagName, rules) => {
     // Lines of filter metadata to parse
@@ -1049,6 +1049,22 @@ const splitByLines = (s) => {
     return s.split(/(?<=\r?\n)/);
 };
 
+/**
+ * Creates a logger function with the specified "verbose" setting.
+ *
+ * @param verbose A flag indicating whether to output messages.
+ *
+ * @returns Function for logging messages.
+ */
+const createLogger = (verbose) => {
+    return (message) => {
+        if (verbose) {
+            // eslint-disable-next-line no-console
+            console.log(message);
+        }
+    };
+};
+
 const DEFAULT_PATCH_TTL_SECONDS = 60 * 60 * 24 * 7;
 const NEW_LINE_INFO = '\\ No newline at end of file';
 const PATCH_EXTENSION = '.patch';
@@ -1235,20 +1251,6 @@ const checkIfPatchIsEmpty = (patch) => {
         return true;
     }
     return false;
-};
-/**
- * Creates a logger function with the specified "verbose" setting.
- *
- * @param verbose A flag indicating whether to output messages.
- *
- * @returns Function for logging messages.
- */
-const createLogger = (verbose) => {
-    return (message) => {
-        if (verbose) {
-            console.log(message);
-        }
-    };
 };
 /**
  * First verifies the version tags in the old and new filters, ensuring they are

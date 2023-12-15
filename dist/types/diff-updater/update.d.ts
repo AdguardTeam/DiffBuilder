@@ -13,6 +13,8 @@ export declare const applyRcsPatch: (filterContent: string[], patch: string[], c
  *
  * @param filterUrl The URL from which the RCS patch can be obtained.
  * @param filterContent The original filter content as a string.
+ * @param callStack The number of recursive calls.
+ * @param verbose Verbose mode.
  *
  * @returns The updated filter content after applying the patch,
  * or null if there is no Diff-Path tag in the filter.
@@ -20,4 +22,4 @@ export declare const applyRcsPatch: (filterContent: string[], patch: string[], c
  * @throws {Error} If there is an error during the patch application process
  * or during network request.
  */
-export declare const applyPatch: (filterUrl: string, filterContent: string) => Promise<string | null>;
+export declare const applyPatch: (filterUrl: string, filterContent: string, callStack?: number, verbose?: boolean) => Promise<string | null>;
