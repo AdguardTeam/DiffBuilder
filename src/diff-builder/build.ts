@@ -10,6 +10,7 @@ import { createDiffDirective } from '../common/diff-directive';
 import { calculateChecksum } from '../common/calculate-checksum';
 import { Resolution, createPatchName } from '../common/patch-name';
 import { splitByLines } from '../common/split-by-lines';
+import { createLogger } from '../common/create-logger';
 
 const DEFAULT_PATCH_TTL_SECONDS = 60 * 60 * 24 * 7;
 
@@ -319,21 +320,6 @@ const checkIfPatchIsEmpty = (patch: string): boolean => {
     }
 
     return false;
-};
-
-/**
- * Creates a logger function with the specified "verbose" setting.
- *
- * @param verbose A flag indicating whether to output messages.
- *
- * @returns Function for logging messages.
- */
-const createLogger = (verbose: boolean) => {
-    return (message: string): void => {
-        if (verbose) {
-            console.log(message);
-        }
-    };
 };
 
 /**

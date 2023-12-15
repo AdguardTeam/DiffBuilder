@@ -48,10 +48,10 @@ describe('check diff-builder', () => {
         const content = FILTER_1_V_1_0_0;
 
         const version = parseTag('Version', splitByLines(content));
-        expect(version).toEqual('v1.0.0\n');
+        expect(version).toEqual('v1.0.0');
 
         const diffPath = parseTag('Diff-Path', splitByLines(content));
-        expect(diffPath).toEqual('patches/v1.0.0.patch\n');
+        expect(diffPath).toEqual('patches/v1.0.0.patch');
     });
 
     it('check splitByLines', () => {

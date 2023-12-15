@@ -7,6 +7,7 @@ import { TypesOfChanges } from '../common/types-of-change';
 import { parseDiffDirective } from '../common/diff-directive';
 import { parsePatchName, timestampWithResolution } from '../common/patch-name';
 import { splitByLines } from '../common/split-by-lines';
+import { createLogger } from '../common/create-logger';
 
 /**
  * Represents an RCS (Revision Control System) operation.
@@ -187,6 +188,8 @@ const checkPatchExpired = (diffPath: string): boolean => {
  *
  * @param filterUrl The URL from which the RCS patch can be obtained.
  * @param filterContent The original filter content as a string.
+ * @param callStack The number of recursive calls.
+ * @param verbose Verbose mode.
  *
  * @returns The updated filter content after applying the patch,
  * or null if there is no Diff-Path tag in the filter.
@@ -197,12 +200,15 @@ const checkPatchExpired = (diffPath: string): boolean => {
 export const applyPatch = async (
     filterUrl: string,
     filterContent: string,
+    callStack = 0,
+    verbose = false,
 ): Promise<string | null> => {
     const filterLines = splitByLines(filterContent);
     const diffPath = parseTag(DIFF_PATH_TAG, filterLines);
 
+    const log = createLogger(verbose);
+
     if (!diffPath) {
-        console.warn('Filter does not support diff updates');
         return null;
     }
 
@@ -231,12 +237,16 @@ export const applyPatch = async (
 
         if (request.status === AcceptableHttpStatusCodes.NotFound
             || request.status === AcceptableHttpStatusCodes.NoContent) {
-            console.info('Update is not available.');
+            if (callStack === 0) {
+                log('Update is not available.');
+            }
             return filterContent;
         }
 
         if (request.status === AcceptableHttpStatusCodes.Ok && request.data === '') {
-            console.info('Update is not available.');
+            if (callStack === 0) {
+                log('Update is not available.');
+            }
             return filterContent;
         }
 
@@ -260,7 +270,12 @@ export const applyPatch = async (
     }
 
     try {
-        const recursiveUpdatedFilter = await applyPatch(filterUrl, updatedFilter);
+        const recursiveUpdatedFilter = await applyPatch(
+            filterUrl,
+            updatedFilter,
+            callStack + 1,
+            verbose,
+        );
         // It can be null if the filter dropped support for Diff-Path in new versions.
         if (recursiveUpdatedFilter === null) {
             // Then we return the filter with the last successfully applied patch.
