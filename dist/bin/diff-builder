@@ -1249,15 +1249,15 @@ const deleteOutdatedPatches = async (pathToPatches, deleteOlderThanSeconds) => {
     return deleted.length;
 };
 /**
- * In the current algorithm, before creating a patch, we need to update the
- * value of the Diff-Path tag in the new filter. This is done to ensure that
+ * In the current algorithm, before creating a patch, we need to update
+ * the value of the Diff-Path tag in the new filter. This is done to ensure that
  * changes to this value are also reflected in the patch. Consequently, these
  * changes can be applied to the old filter from the patch.
  *
  * If there are no differences between the old and new filters, the patch will
- * only contain changes to this tag. Therefore, it is necessary to check that the
- * patch is not empty, meaning it contains lines other than those related to the
- * Diff-Path changes.
+ * only contain changes to this tag. Therefore, it is necessary to check that
+ * the patch is not empty, meaning it contains lines other than those related
+ * to the Diff-Path changes.
  *
  * @param patch The patch to be checked.
  *
@@ -1311,9 +1311,10 @@ const buildDiff = async (params) => {
     // Scan patches folder and delete outdated patches.
     const deleted = await deleteOutdatedPatches(pathToPatches, deleteOlderThanSec);
     log(`Deleted outdated patches: ${deleted}`);
-    // If files are the same - do nothing.
-    if (calculateChecksum(oldFile) === calculateChecksum(newFile)) {
-        log('Files are the same. Do nothing.');
+    // If files are the same and old filter already has diff-path - there are nothing to do.
+    // Otherwise, create empty patch for future version and exit.
+    if (calculateChecksum(oldFile) === calculateChecksum(newFile) && oldFileDiffName) {
+        log('Files are the same. Nothing to do.');
         return;
     }
     // Generate name for new patch
@@ -1336,18 +1337,15 @@ const buildDiff = async (params) => {
     const pathToPatchesRelativeToNewFilter = path.relative(path.dirname(newFilterPath), pathToPatches);
     newFileSplitted = await findAndUpdateTag(DIFF_PATH_TAG, path.join(pathToPatchesRelativeToNewFilter, newFileDiffName), newFileSplitted);
     newFile = newFileSplitted.join('');
-    // After checking that patch is not empty we can save path to new patch
-    // in the new file.
     await fs.promises.writeFile(newListPath, newFile);
     // We cannot save diff, if diff in old file doesn't exists.
     if (!oldFileDiffName) {
-        log('Not found "Diff-Path" in the old filter. Patch can not be created.');
+        log('Not found "Diff-Path" in the old filter. Patch for old file can not be created.');
         return;
     }
     // Calculate diff
     let patch = createPatch(oldFile, newFile);
-    // Keep diff empty if patch contains only info about changing diff-path
-    // FIXME: Change logic, because new filter wouldn't contain Diff-Path yet.
+    // If patch is empty - don't write it to file.
     if (checkIfPatchIsEmpty(patch)) {
         log('No changes detected between old and new files. Patch would not be created.');
         return;
@@ -1365,7 +1363,7 @@ const buildDiff = async (params) => {
     log(`Wrote patch to: ${oldFilePatch}`);
 };
 
-var version = "0.0.2";
+var version = "0.0.5";
 
 const program = new commander.Command();
 /**
