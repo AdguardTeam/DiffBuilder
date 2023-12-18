@@ -495,7 +495,9 @@ const parseTag = (tagName, rules) => {
 
 const DIFF_PATH_TAG = 'Diff-Path';
 
-// Type of diff change.
+/**
+ * Type of diff change.
+ */
 const TypesOfChanges = {
     Add: 'a',
     Delete: 'd',
@@ -1020,14 +1022,29 @@ const generateCreationTime = (resolution) => {
     }
 };
 /**
- * Creates a patch name based on the provided options.
+ * Validates a patch name to ensure it contain only letters, digits, '_' and '.'.
  *
- * @param options - The options for creating the patch name.
+ * @param patchName The patch name to validate.
+ *
+ * @returns True if the patch name is valid, false otherwise.
+ */
+const isPatchNameValid = (patchName) => {
+    return /^[a-zA-Z0-9_.]{1,64}$/.test(patchName);
+};
+/**
+ * Generates a patch name based on the provided options.
+ *
+ * @param options The options for creating the patch name.
  *
  * @returns A string representing the generated patch name.
+ *
+ * @throws {Error} If the provided name is invalid according to the criteria.
  */
 const createPatchName = (options) => {
     const { name, resolution, time, } = options;
+    if (!isPatchNameValid(name)) {
+        throw new Error('Name of the patch file should contain only letters, digits, \'_\' and \'.\'');
+    }
     const epochTimestamp = generateCreationTime(resolution);
     const newFileDiffName = [name];
     if (resolution && resolution !== Resolution.Hours) {

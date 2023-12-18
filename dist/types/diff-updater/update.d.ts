@@ -29,11 +29,11 @@ export interface ApplyPatchParams {
  */
 export declare const applyRcsPatch: (filterContent: string[], patch: string[], checksum?: string) => string;
 /**
- * Updates a filter's content using an RCS (Revision Control System) patch retrieved from a specified URL.
+ * Applies an RCS (Revision Control System) patch to update a filter's content.
  *
- * @param params @see {@link ApplyPatchParams}.
+ * @param params The parameters for applying the patch {@link ApplyPatchParams}.
  *
- * @returns The updated filter content after applying the patch,
+ * @returns A promise that resolves to the updated filter content after applying the patch,
  * or null if there is no Diff-Path tag in the filter.
  *
  * @throws {Error} If there is an error during the patch application process

@@ -460,7 +460,9 @@ const calculateChecksum = (content) => {
 
 const DIFF_PATH_TAG = 'Diff-Path';
 
-// Type of diff change.
+/**
+ * Type of diff change.
+ */
 const TypesOfChanges = {
     Add: 'a',
     Delete: 'd',
@@ -579,7 +581,7 @@ const assertNever = (x) => {
  *
  * @throws {Error} If an unexpected resolution is provided.
  */
-const timestampWithResolution = (timestamp, resolution) => {
+const timestampWithResolutionToMs = (timestamp, resolution) => {
     switch (resolution) {
         case Resolution.Hours:
             return timestamp * MS_IN_HOURS;
@@ -772,16 +774,70 @@ const applyRcsPatch = (filterContent, patch, checksum) => {
  */
 const checkPatchExpired = (diffPath) => {
     const { resolution, epochTimestamp, time, } = parsePatchName(diffPath);
-    const createdMs = timestampWithResolution(epochTimestamp, resolution);
-    const ttlMs = timestampWithResolution(time, resolution);
+    const createdMs = timestampWithResolutionToMs(epochTimestamp, resolution);
+    const ttlMs = timestampWithResolutionToMs(time, resolution);
     return Date.now() > createdMs + ttlMs;
 };
 /**
- * Updates a filter's content using an RCS (Revision Control System) patch retrieved from a specified URL.
+ * Downloads a file from a specified URL and returns its content as a string.
  *
- * @param params @see {@link ApplyPatchParams}.
+ * @param baseURL The base URL of the file.
+ * @param fileUrl The URL from which to download the file.
+ * @param isFileHostedViaNetworkProtocol Indicates whether the file is hosted
+ * via a network protocol (http/https).
+ * If `isFileHostedViaNetworkProtocol` is `true`, the function accepts HTTP
+ * status codes based on the `AcceptableHttpStatusCodes` enumeration.
+ * If `isFileHostedViaNetworkProtocol` is `false`, only 2xx status codes are
+ * accepted, indicating a successful local or similar file request.
+ * Any other status codes result in an error.
+ * @param isRecursiveUpdate Indicates whether the function is called recursively.
+ * @param log A function that logs a message.
  *
- * @returns The updated filter content after applying the patch,
+ * @returns A promise that resolves to the content of the downloaded file
+ * as a string.
+ *
+ * @throws {Error} If there is an error during the network request, the file
+ * is not found, or the file is empty.
+ */
+const downloadFile = async (baseURL, fileUrl, isFileHostedViaNetworkProtocol, isRecursiveUpdate, log) => {
+    try {
+        const request = await axios.get(fileUrl, {
+            baseURL,
+            validateStatus: (status) => {
+                if (!isFileHostedViaNetworkProtocol) {
+                    // For local and similar files, accept only 2xx status codes.
+                    return status >= 200 && status < 300;
+                }
+                // For network-hosted files, accept status codes defined in AcceptableHttpStatusCodes.
+                const acceptableHttpStatusCodes = Object.values(AcceptableHttpStatusCodes);
+                return acceptableHttpStatusCodes.includes(status);
+            },
+        });
+        if (request.status === AcceptableHttpStatusCodes.NotFound
+            || request.status === AcceptableHttpStatusCodes.NoContent) {
+            if (!isRecursiveUpdate) {
+                log('Update is not available.');
+            }
+            return null;
+        }
+        if (request.status === AcceptableHttpStatusCodes.Ok && request.data === '') {
+            if (!isRecursiveUpdate) {
+                log('Update is not available.');
+            }
+            return null;
+        }
+        return splitByLines(request.data);
+    }
+    catch (e) {
+        throw new Error(`Error during network request: ${e}`, { cause: e });
+    }
+};
+/**
+ * Applies an RCS (Revision Control System) patch to update a filter's content.
+ *
+ * @param params The parameters for applying the patch {@link ApplyPatchParams}.
+ *
+ * @returns A promise that resolves to the updated filter content after applying the patch,
  * or null if there is no Diff-Path tag in the filter.
  *
  * @throws {Error} If there is an error during the patch application process
@@ -803,34 +859,21 @@ const applyPatch = async (params) => {
         }
         let patch = [];
         try {
-            // Remove the last part of the path
+            // Remove the last part of the URL, which is the file name, and replace
+            // it with the patch name because the patch name is relative to the filter URL.
             const baseURL = filterUrl
                 .split('/')
                 .slice(0, -1)
                 .join('/');
-            const request = await axios.get(diffPath, {
-                baseURL,
-                validateStatus: (status) => {
-                    return Object.values(AcceptableHttpStatusCodes).includes(status);
-                },
-            });
-            if (request.status === AcceptableHttpStatusCodes.NotFound
-                || request.status === AcceptableHttpStatusCodes.NoContent) {
-                if (callStack === 0) {
-                    log('Update is not available.');
-                }
+            const res = await downloadFile(baseURL, diffPath, diffPath.startsWith('http://') || diffPath.startsWith('https://'), callStack > 0, log);
+            // Update is not available yet.
+            if (res === null) {
                 return filterContent;
             }
-            if (request.status === AcceptableHttpStatusCodes.Ok && request.data === '') {
-                if (callStack === 0) {
-                    log('Update is not available.');
-                }
-                return filterContent;
-            }
-            patch = splitByLines(request.data);
+            patch = res;
         }
         catch (e) {
-            throw new Error(`Error during network request: ${e}`, { cause: e });
+            throw new Error(`Error during downloading patch file: ${e}`);
         }
         let updatedFilter = '';
         try {

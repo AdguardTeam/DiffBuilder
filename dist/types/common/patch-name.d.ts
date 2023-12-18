@@ -32,6 +32,18 @@ export declare const Resolution: {
 };
 export type Resolution = typeof Resolution[keyof typeof Resolution];
 /**
+ * Generates a creation time timestamp based on the specified resolution.
+ *
+ * @param resolution - The desired resolution for the timestamp (Minutes, Seconds,
+ * or Hours).
+ *
+ * @returns A timestamp representing the creation time based on the specified
+ * resolution.
+ *
+ * @throws {Error} If an unexpected resolution is provided.
+ */
+export declare const generateCreationTime: (resolution: Resolution) => number;
+/**
  * Converts a timestamp to milliseconds based on the specified resolution.
  *
  * @param timestamp The timestamp to convert.
@@ -41,11 +53,11 @@ export type Resolution = typeof Resolution[keyof typeof Resolution];
  *
  * @throws {Error} If an unexpected resolution is provided.
  */
-export declare const timestampWithResolution: (timestamp: number, resolution: Resolution) => number;
+export declare const timestampWithResolutionToMs: (timestamp: number, resolution: Resolution) => number;
 /**
  * An interface representing the components of a patch name.
  */
-interface PatchName {
+export interface PatchName {
     name: string;
     resolution: Resolution;
     time: number;
@@ -57,11 +69,21 @@ interface ParsedPatchName extends PatchName {
     epochTimestamp: number;
 }
 /**
- * Creates a patch name based on the provided options.
+ * Validates a patch name to ensure it contain only letters, digits, '_' and '.'.
  *
- * @param options - The options for creating the patch name.
+ * @param patchName The patch name to validate.
+ *
+ * @returns True if the patch name is valid, false otherwise.
+ */
+export declare const isPatchNameValid: (patchName: string) => boolean;
+/**
+ * Generates a patch name based on the provided options.
+ *
+ * @param options The options for creating the patch name.
  *
  * @returns A string representing the generated patch name.
+ *
+ * @throws {Error} If the provided name is invalid according to the criteria.
  */
 export declare const createPatchName: (options: PatchName) => string;
 /**
