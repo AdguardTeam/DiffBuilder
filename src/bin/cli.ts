@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
 
-import { Resolution } from '../common/patch-name';
+import { Resolution, isPatchNameValid } from '../common/patch-name';
 import { buildDiff } from '../diff-builder/build';
 import { version } from '../../package.json';
 
@@ -48,7 +48,7 @@ async function main(): Promise<void> {
                 throw new Error(`Resolution should be one of ${Object.values(Resolution).join(',')}`);
             }
 
-            if (!(/^[a-zA-Z0-9_.]{1,64}$/.test(name))) {
+            if (!isPatchNameValid(name)) {
                 throw new Error('Name of the patch file should contain only letters, digits, \'_\' and \'.\'');
             }
 
