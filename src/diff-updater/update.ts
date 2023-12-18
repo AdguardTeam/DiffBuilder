@@ -5,7 +5,7 @@ import { calculateChecksum } from '../common/calculate-checksum';
 import { DIFF_PATH_TAG } from '../common/constants';
 import { TypesOfChanges } from '../common/types-of-change';
 import { parseDiffDirective } from '../common/diff-directive';
-import { parsePatchName, timestampWithResolution } from '../common/patch-name';
+import { parsePatchName, timestampWithResolutionToMs } from '../common/patch-name';
 import { splitByLines } from '../common/split-by-lines';
 import { createLogger } from '../common/create-logger';
 
@@ -200,8 +200,8 @@ const checkPatchExpired = (diffPath: string): boolean => {
         time,
     } = parsePatchName(diffPath);
 
-    const createdMs = timestampWithResolution(epochTimestamp, resolution);
-    const ttlMs = timestampWithResolution(time, resolution);
+    const createdMs = timestampWithResolutionToMs(epochTimestamp, resolution);
+    const ttlMs = timestampWithResolutionToMs(time, resolution);
 
     return Date.now() > createdMs + ttlMs;
 };

@@ -66,7 +66,7 @@ const assertNever = (x: never): never => {
  *
  * @throws {Error} If an unexpected resolution is provided.
  */
-const generateCreationTime = (resolution: Resolution): number => {
+export const generateCreationTime = (resolution: Resolution): number => {
     switch (resolution) {
         case Resolution.Hours:
             return Math.round(Date.now() / MS_IN_HOURS);
@@ -89,7 +89,7 @@ const generateCreationTime = (resolution: Resolution): number => {
  *
  * @throws {Error} If an unexpected resolution is provided.
  */
-export const timestampWithResolution = (timestamp: number, resolution: Resolution): number => {
+export const timestampWithResolutionToMs = (timestamp: number, resolution: Resolution): number => {
     switch (resolution) {
         case Resolution.Hours:
             return timestamp * MS_IN_HOURS;
@@ -105,7 +105,7 @@ export const timestampWithResolution = (timestamp: number, resolution: Resolutio
 /**
  * An interface representing the components of a patch name.
  */
-interface PatchName {
+export interface PatchName {
     name: string;
     resolution: Resolution;
     time: number;
@@ -119,11 +119,24 @@ interface ParsedPatchName extends PatchName {
 }
 
 /**
- * Creates a patch name based on the provided options.
+ * Validates a patch name to ensure it contain only letters, digits, '_' and '.'.
  *
- * @param options - The options for creating the patch name.
+ * @param patchName The patch name to validate.
+ *
+ * @returns True if the patch name is valid, false otherwise.
+ */
+export const isPatchNameValid = (patchName: string): boolean => {
+    return /^[a-zA-Z0-9_.]{1,64}$/.test(patchName);
+};
+
+/**
+ * Generates a patch name based on the provided options.
+ *
+ * @param options The options for creating the patch name.
  *
  * @returns A string representing the generated patch name.
+ *
+ * @throws {Error} If the provided name is invalid according to the criteria.
  */
 export const createPatchName = (options: PatchName): string => {
     const {
@@ -131,6 +144,10 @@ export const createPatchName = (options: PatchName): string => {
         resolution,
         time,
     } = options;
+
+    if (!isPatchNameValid(name)) {
+        throw new Error('Name of the patch file should contain only letters, digits, \'_\' and \'.\'');
+    }
 
     const epochTimestamp = generateCreationTime(resolution);
 
