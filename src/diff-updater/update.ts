@@ -249,11 +249,19 @@ export const applyPatch = async (params: ApplyPatchParams): Promise<string | nul
                 .split('/')
                 .slice(0, -1)
                 .join('/');
+
+            const isFileHostedViaNetworkProtocol = diffPath.startsWith('http://') || diffPath.startsWith('https://');
+
             const request = await axios.get(
                 diffPath,
                 {
                     baseURL,
                     validateStatus: (status) => {
+                        // For local and similar files we accept only 2xx status codes.
+                        if (!isFileHostedViaNetworkProtocol) {
+                            return status >= 200 && status < 300;
+                        }
+
                         return Object.values(AcceptableHttpStatusCodes).includes(status as AcceptableHttpStatusCodes);
                     },
                 },

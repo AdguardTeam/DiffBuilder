@@ -41,7 +41,7 @@ describe('check diff-builder', () => {
 
         const checksum = calculateChecksum(content);
 
-        expect(checksum).toEqual('be09384422b8d7f20da517d1245360125868f0b9');
+        expect(checksum).toEqual('17fbb4b268e4d176fbd75fd627ba2e84b945e077');
     });
 
     it('check parseTag', () => {
@@ -49,9 +49,13 @@ describe('check diff-builder', () => {
 
         const version = parseTag('Version', splitByLines(content));
         expect(version).toEqual('v1.0.0');
+        expect(version!.endsWith('\n')).toBeFalsy();
+        expect(version!.endsWith('\r\n')).toBeFalsy();
 
         const diffPath = parseTag('Diff-Path', splitByLines(content));
-        expect(diffPath).toEqual('patches/v1.0.0.patch');
+        expect(diffPath).toEqual('../patches/1/1-m-28378132-60.patch');
+        expect(diffPath!.endsWith('\n')).toBeFalsy();
+        expect(diffPath!.endsWith('\r\n')).toBeFalsy();
     });
 
     it('check splitByLines', () => {
@@ -71,12 +75,28 @@ describe('check diff-builder', () => {
     it('check findAndUpdateTag', () => {
         const content = FILTER_1_V_1_0_0;
 
-        const filterWithUpdatedVersion = findAndUpdateTag('Version', 'v9.9.9', splitByLines(content));
-        expect(filterWithUpdatedVersion.join('')).toEqual(content.replace('! Version: v1.0.0', '! Version: v9.9.9'));
+        const filterWithUpdatedVersion = findAndUpdateTag(
+            'Version',
+            'v9.9.9',
+            splitByLines(content),
+        );
+        expect(filterWithUpdatedVersion.join('')).toEqual(
+            content.replace(
+                '! Version: v1.0.0',
+                '! Version: v9.9.9',
+            ),
+        );
 
-        const filterWithUpdatedDiffPath = findAndUpdateTag('Diff-Path', 'patches/v9.9.9.patch', splitByLines(content));
+        const filterWithUpdatedDiffPath = findAndUpdateTag(
+            'Diff-Path',
+            '../patches/1/1-m-28378192-60.patch',
+            splitByLines(content),
+        );
         expect(filterWithUpdatedDiffPath.join('')).toEqual(
-            content.replace('! Diff-Path: patches/v1.0.0.patch', '! Diff-Path: patches/v9.9.9.patch'),
+            content.replace(
+                '! Diff-Path: ../patches/1/1-m-28378132-60.patch',
+                '! Diff-Path: ../patches/1/1-m-28378192-60.patch',
+            ),
         );
 
         // Check that original filter didn't changed.
@@ -113,7 +133,7 @@ describe('check diff-builder', () => {
             const diffDirective = createDiffDirective(splitByLines(filter1), filter2, patch);
             patch = diffDirective.concat('\n', patch);
 
-            const directive = 'diff checksum:be09384422b8d7f20da517d1245360125868f0b9 lines:4';
+            const directive = 'diff checksum:17fbb4b268e4d176fbd75fd627ba2e84b945e077 lines:4';
 
             expect(patch).toEqual(directive.concat('\n').concat(PATCH_1_1_0_0));
         });
