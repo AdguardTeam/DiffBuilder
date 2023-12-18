@@ -112,7 +112,11 @@ await DiffBuilder.buildDiff({
    verbose: true,
 });
 
-const updatedFilter = await DiffUpdater.applyPatch(filterUrl, filterContent);
+const updatedFilter = await DiffUpdater.applyPatch({
+    filterUrl,
+    filterContent,
+    verbose: true,
+});
 ```
 
 ### ESM
@@ -131,5 +135,9 @@ await DiffBuilder.buildDiff({
    verbose: true,
 });
 
-const updatedFilter = await DiffUpdater.applyPatch(filterUrl, filterContent);
+const updatedFilter = await DiffUpdater.applyPatch({
+    filterUrl,
+    filterContent,
+    verbose: true,
+});
 ```
