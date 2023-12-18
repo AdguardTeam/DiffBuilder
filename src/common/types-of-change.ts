@@ -1,4 +1,6 @@
-// Type of diff change.
+/**
+ * Type of diff change.
+ */
 export const TypesOfChanges = {
     Add: 'a',
     Delete: 'd',
