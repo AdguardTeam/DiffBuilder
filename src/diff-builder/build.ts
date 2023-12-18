@@ -8,19 +8,20 @@ import { DIFF_PATH_TAG } from '../common/constants';
 import { TypesOfChanges } from '../common/types-of-change';
 import { createDiffDirective } from '../common/diff-directive';
 import { calculateChecksum } from '../common/calculate-checksum';
+import { Resolution, createPatchName } from '../common/patch-name';
+import { splitByLines } from '../common/split-by-lines';
+import { createLogger } from '../common/create-logger';
 
 const DEFAULT_PATCH_TTL_SECONDS = 60 * 60 * 24 * 7;
 
-export enum Resolution {
-    Hours = 'h',
-    Minutes = 'm',
-    Seconds = 's',
-}
+const NEW_LINE_INFO = '\\ No newline at end of file';
+
+export const PATCH_EXTENSION = '.patch';
 
 /**
  * Parameters for building a diff patch between old and new filters.
  */
-interface BuildDiffParams {
+export interface BuildDiffParams {
     /**
      * The relative path to the old filter.
      */
@@ -148,13 +149,13 @@ export const createPatch = (oldFile: string, newFile: string): string => {
         return [];
     };
 
-    hunks.forEach((hunk) => {
+    hunks.forEach((hunk, hunkIdx) => {
         const { oldStart, lines } = hunk;
 
         let fileIndexScanned = oldStart;
 
         // Library will print some debug info so we need to skip this line.
-        const filteredLines = lines.filter((l) => l !== '\\ No newline at end of file');
+        const filteredLines = lines.filter((l) => l !== NEW_LINE_INFO);
 
         for (let index = 0; index < filteredLines.length; index += 1) {
             const line = filteredLines[index];
@@ -201,6 +202,12 @@ export const createPatch = (oldFile: string, newFile: string): string => {
                 fileIndexScanned += index + 1;
             }
         }
+
+        // Check if we need to insert new line to the patch or not
+        if ((lines.filter((l) => l === NEW_LINE_INFO).length > 0 && lines[lines.length - 1] !== NEW_LINE_INFO)
+            || (lines.filter((l) => l === NEW_LINE_INFO).length === 0 && hunkIdx === hunks.length - 1)) {
+            outDiff[outDiff.length - 1] = outDiff[outDiff.length - 1].concat('\n');
+        }
     });
 
     return outDiff.join('\n');
@@ -215,7 +222,7 @@ export const createPatch = (oldFile: string, newFile: string): string => {
  * @returns Created tag in `! ${tagName}: ${value}` format.
  */
 const createTag = (tagName: string, value: string): string => {
-    return `! ${tagName}: ${value}`;
+    return `! ${tagName}: ${value}\n`;
 };
 
 /**
@@ -260,7 +267,6 @@ const deleteOutdatedPatches = async (
     pathToPatches: string,
     deleteOlderThanSeconds: number,
 ): Promise<number> => {
-    const PATCH_EXTENSION = '.patch';
     const files = await fs.promises.readdir(pathToPatches);
     const tasksToDeleteFiles: Promise<void>[] = [];
     for (const file of files) {
@@ -288,35 +294,22 @@ const deleteOutdatedPatches = async (
 };
 
 /**
- * Generates a creation time timestamp based on the specified resolution.
+ * In the current algorithm, before creating a patch, we need to update
+ * the value of the Diff-Path tag in the new filter. This is done to ensure that
+ * changes to this value are also reflected in the patch. Consequently, these
+ * changes can be applied to the old filter from the patch.
  *
- * @param resolution The desired resolution for the timestamp (Minutes, Seconds,
- * or Hours).
- *
- * @returns A timestamp representing the creation time based on the specified
- * resolution.
- */
-const generateCreationTime = (resolution: Resolution): number => {
-    switch (resolution) {
-        case Resolution.Minutes:
-            return Math.round(Date.now() / (1000 * 60));
-        case Resolution.Seconds:
-            return Math.round(Date.now() / 1000);
-        case Resolution.Hours:
-        default:
-            return Math.round(Date.now() / (1000 * 60 * 60));
-    }
-};
-
-/**
- * Checks if a patch is empty based on certain criteria.
+ * If there are no differences between the old and new filters, the patch will
+ * only contain changes to this tag. Therefore, it is necessary to check that
+ * the patch is not empty, meaning it contains lines other than those related
+ * to the Diff-Path changes.
  *
  * @param patch The patch to be checked.
  *
  * @returns Returns `true` if the patch is empty, otherwise `false`.
  */
 const checkIfPatchIsEmpty = (patch: string): boolean => {
-    const lines = patch.split('\n');
+    const lines = splitByLines(patch);
 
     if (lines.length === 3
         && lines[0] === 'd1 1'
@@ -327,21 +320,6 @@ const checkIfPatchIsEmpty = (patch: string): boolean => {
     }
 
     return false;
-};
-
-/**
- * Creates a logger function with the specified "verbose" setting.
- *
- * @param verbose A flag indicating whether to output messages.
- *
- * @returns Function for logging messages.
- */
-const createLogger = (verbose: boolean) => {
-    return (message: string): void => {
-        if (verbose) {
-            console.log(message);
-        }
-    };
 };
 
 /**
@@ -384,13 +362,9 @@ export const buildDiff = async (params: BuildDiffParams): Promise<void> => {
     const oldFile = await fs.promises.readFile(prevListPath, { encoding: 'utf-8' });
     let newFile = await fs.promises.readFile(newListPath, { encoding: 'utf-8' });
 
-    // End of files
-    const endOfOldFile = /\r\n$/gm.test(oldFile) ? '\r\n' : '\n';
-    const endOfNewFile = /\r\n$/gm.test(newFile) ? '\r\n' : '\n';
-
     // Splitted filters' content
-    const oldFileSplitted = oldFile.split(endOfOldFile);
-    let newFileSplitted = newFile.split(endOfNewFile);
+    const oldFileSplitted = splitByLines(oldFile);
+    let newFileSplitted = splitByLines(newFile);
 
     const oldFileDiffName = parseTag(DIFF_PATH_TAG, oldFileSplitted);
 
@@ -408,17 +382,15 @@ export const buildDiff = async (params: BuildDiffParams): Promise<void> => {
 
     log(`Deleted outdated patches: ${deleted}`);
 
-    // If files are the same - do nothing.
-    if (calculateChecksum(oldFile) === calculateChecksum(newFile)) {
-        log('Files are the same. Do nothing.');
+    // If files are the same and old filter already has diff-path - there are nothing to do.
+    // Otherwise, create empty patch for future version and exit.
+    if (calculateChecksum(oldFile) === calculateChecksum(newFile) && oldFileDiffName) {
+        log('Files are the same. Nothing to do.');
         return;
     }
 
     // Generate name for new patch
-    const epochTimestamp = generateCreationTime(resolution);
-    const newFileDiffName = resolution && resolution !== Resolution.Hours
-        ? `${name}-${resolution}-${epochTimestamp}-${time}.patch`
-        : `${name}-${epochTimestamp}-${time}.patch`;
+    const newFileDiffName = createPatchName({ name, resolution, time });
 
     if (oldFileDiffName === newFileDiffName) {
         // eslint-disable-next-line max-len
@@ -446,30 +418,27 @@ export const buildDiff = async (params: BuildDiffParams): Promise<void> => {
         path.join(pathToPatchesRelativeToNewFilter, newFileDiffName),
         newFileSplitted,
     );
-    newFile = newFileSplitted.join(endOfNewFile);
+    newFile = newFileSplitted.join('');
+
+    await fs.promises.writeFile(
+        newListPath,
+        newFile,
+    );
 
     // We cannot save diff, if diff in old file doesn't exists.
     if (!oldFileDiffName) {
-        log('Not found "Diff-Path" in the old filter. Patch can not be created.');
+        log('Not found "Diff-Path" in the old filter. Patch for old file can not be created.');
         return;
     }
 
     // Calculate diff
     let patch = createPatch(oldFile, newFile);
 
-    // Keep diff empty if patch contains only info about changing diff-path
-    // FIXME: Change logic, because new filter wouldn't contain Diff-Path yet.
+    // If patch is empty - don't write it to file.
     if (checkIfPatchIsEmpty(patch)) {
         log('No changes detected between old and new files. Patch would not be created.');
         return;
     }
-
-    // After checking that patch is not empty we can save path to new patch
-    // in the new file.
-    await fs.promises.writeFile(
-        newListPath,
-        newFile,
-    );
 
     // Add checksum to patch if requested
     if (checksum) {

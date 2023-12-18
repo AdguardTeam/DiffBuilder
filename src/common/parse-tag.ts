@@ -4,7 +4,7 @@
  * @param tagName Filter header tag name.
  * @param rules Lines of filter rules text.
  *
- * @returns Value of specified header tag or null if tag not found.
+ * @returns Trimmed value of specified header tag or null if tag not found.
  */
 export const parseTag = (tagName: string, rules: string[]): string | null => {
     // Lines of filter metadata to parse
@@ -23,7 +23,7 @@ export const parseTag = (tagName: string, rules: string[]): string | null => {
         const indexOfSearch = rule.indexOf(search);
 
         if (indexOfSearch >= 0) {
-            return rule.substring(indexOfSearch + search.length);
+            return rule.substring(indexOfSearch + search.length).trim();
         }
     }
 

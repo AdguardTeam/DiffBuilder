@@ -1,3 +1,10 @@
-import { applyPatch } from './update';
+import { applyPatch, type ApplyPatchParams } from './update';
 
-export { applyPatch };
+const DiffUpdater = {
+    applyPatch,
+};
+
+export {
+    DiffUpdater,
+    type ApplyPatchParams,
+};

@@ -1,6 +1,33 @@
+/**
+ * @file
+ * This file describes how to work with the `diff` directive.
+ *
+ * Format:
+ * ```
+ * diff name:[name] checksum:[checksum] lines:[lines].
+ * ```
+ *
+ * - `name`: Name of the corresponding filter list. Mandatory when a resource
+ * name is specified in the list.
+ * - `checksum`: The expected SHA1 checksum of the file after the patch
+ * is applied. Used to validate the patch.
+ * - `lines`: The number of lines that follow, making up the RCS diff block.
+ * Line count is determined using the same algorithm as `wc -l`, counting
+ * newline characters '\n'.
+ *
+ * The `diff` directive is optional. If not specified, the patch is applied without validation.
+ *
+ * @see @link [Diff Files Format](https://github.com/ameshkov/diffupdates?tab=readme-ov-file#diff-files-format)
+ */
+
 import { calculateChecksum } from './calculate-checksum';
 import { DIFF_PATH_TAG } from './constants';
 import { parseTag } from './parse-tag';
+
+const DIFF_DIRECTIVE = 'diff';
+const DIFF_DIRECTIVE_NAME = 'name';
+const DIFF_DIRECTIVE_CHECKSUM = 'checksum';
+const DIFF_DIRECTIVE_LINE = 'lines';
 
 /**
  * Represents a Diff Directive, containing information about the patch.
@@ -20,11 +47,6 @@ interface DiffDirective {
      * The number of lines affected by the diff operation.
      */
     lines: number;
-
-    /**
-     * The timestamp of creating patch in milliseconds.
-     */
-    timestampMs: number;
 }
 
 /**
@@ -46,11 +68,17 @@ export const createDiffDirective = (
     const [, resourceName] = (diffPath || '').split('#');
     const checksum = calculateChecksum(newFilterContent);
     const lines = patchContent.split('\n').length - 1;
-    const timestampMs = Date.now();
 
-    return resourceName
-        ? `diff name:${resourceName} checksum:${checksum} lines:${lines} timestamp:${timestampMs}`
-        : `diff checksum:${checksum} lines:${lines} timestamp:${timestampMs}`;
+    const directive = [DIFF_DIRECTIVE];
+
+    if (resourceName) {
+        directive.push(`${DIFF_DIRECTIVE_NAME}:${resourceName}`);
+    }
+
+    directive.push(`${DIFF_DIRECTIVE_CHECKSUM}:${checksum}`);
+    directive.push(`${DIFF_DIRECTIVE_LINE}:${lines}`);
+
+    return directive.join(' ');
 };
 
 /**
@@ -61,7 +89,7 @@ export const createDiffDirective = (
  * otherwise null.
  */
 export const parseDiffDirective = (s: string): DiffDirective | null => {
-    if (!s.startsWith('diff')) {
+    if (!s.startsWith(DIFF_DIRECTIVE)) {
         return null;
     }
 
@@ -70,20 +98,18 @@ export const parseDiffDirective = (s: string): DiffDirective | null => {
         // skip 'diff'
         .slice(1);
 
-    const nameExists = parts[0].startsWith('name');
+    const nameExists = parts[0].startsWith(DIFF_DIRECTIVE_NAME);
 
     if (nameExists) {
         return {
-            name: parts[0].slice('name:'.length),
-            checksum: parts[1].slice('checksum:'.length),
-            lines: Number(parts[2].slice('lines:'.length)),
-            timestampMs: Number(parts[3].slice('timestamp:'.length)),
+            name: parts[0].slice(`${DIFF_DIRECTIVE_NAME}:`.length),
+            checksum: parts[1].slice(`${DIFF_DIRECTIVE_CHECKSUM}:`.length),
+            lines: Number(parts[2].slice(`${DIFF_DIRECTIVE_LINE}:`.length)),
         };
     }
 
     return {
-        checksum: parts[0].slice('checksum:'.length),
-        lines: Number(parts[1].slice('lines:'.length)),
-        timestampMs: Number(parts[2].slice('timestamp:'.length)),
+        checksum: parts[0].slice(`${DIFF_DIRECTIVE_CHECKSUM}:`.length),
+        lines: Number(parts[1].slice(`${DIFF_DIRECTIVE_LINE}:`.length)),
     };
 };

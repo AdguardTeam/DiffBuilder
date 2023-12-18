@@ -1,4 +1,4 @@
-import { createHash } from 'crypto';
+import SHA1 from 'crypto-js/sha1';
 
 /**
  * Calculates SHA1 checksum for patch.
@@ -8,8 +8,7 @@ import { createHash } from 'crypto';
  * @returns SHA1 checksum for patch.
  */
 export const calculateChecksum = (content: string): string => {
-    const hash = createHash('sha1');
-    const data = hash.update(content, 'utf-8');
+    const res = SHA1(content);
 
-    return data.digest('hex');
+    return res.toString();
 };

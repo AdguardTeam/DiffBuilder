@@ -2,10 +2,19 @@
 
 A tool for generating differential updates for filter lists.
 
-- [How to Use](#how-to-use)
+- [How to install](#how-to-install)
+- [How to use](#how-to-use)
+   - [Use as CLI](#cli)
+   - [Use as API](#api)
 - [Algorithm](#algorithm)
 
+## How to install
+
+`yarn add @adguard/diff-builder`
+
 ## How to Use
+
+## CLI
 
 ```bash
 diff-builder build [-c] [-d <seconds>] [-r <resolution>] [-v] -n <name> -t <expirationPeriod> <old_filter> <new_filter> <path_to_patches>
@@ -84,3 +93,51 @@ Where:
 ## Important
 
 The `oldFilterPath` is expected to already contain a `Diff-Path` tag.
+
+## API
+
+### CJS
+
+```javascript
+const { DiffBuilder } = require('@adguard/diff-builder');
+const { DiffUpdater } = require('@adguard/diff-builder/diff-updater');
+
+await DiffBuilder.buildDiff({
+   oldFilterPath,
+   newFilterPath,
+   patchesPath,
+   name,
+   time,
+   resolution,
+   verbose: true,
+});
+
+const updatedFilter = await DiffUpdater.applyPatch({
+    filterUrl,
+    filterContent,
+    verbose: true,
+});
+```
+
+### ESM
+
+```javascript
+import { DiffBuilder } from '@adguard/diff-builder/es';
+import { DiffUpdater } from '@adguard/diff-builder/diff-updater/es';
+
+await DiffBuilder.buildDiff({
+   oldFilterPath,
+   newFilterPath,
+   patchesPath,
+   name,
+   time,
+   resolution,
+   verbose: true,
+});
+
+const updatedFilter = await DiffUpdater.applyPatch({
+    filterUrl,
+    filterContent,
+    verbose: true,
+});
+```

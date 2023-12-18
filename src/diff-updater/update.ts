@@ -5,6 +5,32 @@ import { calculateChecksum } from '../common/calculate-checksum';
 import { DIFF_PATH_TAG } from '../common/constants';
 import { TypesOfChanges } from '../common/types-of-change';
 import { parseDiffDirective } from '../common/diff-directive';
+import { parsePatchName, timestampWithResolutionToMs } from '../common/patch-name';
+import { splitByLines } from '../common/split-by-lines';
+import { createLogger } from '../common/create-logger';
+
+/**
+ * Interface describing the parameters of the applyPatch function.
+ */
+export interface ApplyPatchParams {
+    /**
+     * The URL from which the RCS patch can be obtained.
+     * @type {string}
+     */
+    filterUrl: string;
+
+    /**
+     * The original filter content as a string.
+     * @type {string}
+     */
+    filterContent: string;
+
+    /**
+     * Whether to enable verbose mode.
+     * @type {boolean}
+     */
+    verbose?: boolean;
+}
 
 /**
  * Represents an RCS (Revision Control System) operation.
@@ -26,11 +52,20 @@ interface RcsOperation {
     numberOfLines: number;
 }
 
-enum HttpStatusCode {
-    NotFound = 404,
-    NoContent = 204,
-    Ok = 200,
-}
+/**
+ * If the differential update is not available the server may signal about that
+ * by returning one of the following responses.
+ *
+ * @see @link Step 3 in https://github.com/ameshkov/diffupdates?tab=readme-ov-file#algorithm
+ */
+const AcceptableHttpStatusCodes = {
+    NotFound: 404,
+    NoContent: 204,
+    Ok: 200,
+} as const;
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+type AcceptableHttpStatusCodes = typeof AcceptableHttpStatusCodes[keyof typeof AcceptableHttpStatusCodes];
 
 /**
  * Parses an RCS (Revision Control System) operation string into an object
@@ -54,6 +89,14 @@ const parseRcsOperation = (rcsOperation: string): RcsOperation => {
         throw new Error(`Operation is not valid: cannot parse type: ${rcsOperation}`);
     }
 
+    if (Number.isNaN(startIndex)) {
+        throw new Error(`Operation is not valid: cannot parse index: ${rcsOperation}`);
+    }
+
+    if (Number.isNaN(numberOfLines)) {
+        throw new Error(`Operation is not valid: cannot parse number of lines: ${rcsOperation}`);
+    }
+
     return {
         typeOfOperation,
         startIndex,
@@ -66,7 +109,6 @@ const parseRcsOperation = (rcsOperation: string): RcsOperation => {
  *
  * @param filterContent An array of strings representing the original filter content.
  * @param patch An array of strings representing the RCS patch to apply.
- * @param endOfFile A string representing the end of file character.
  * @param checksum An optional checksum to validate the updated filter content.
  * @returns The updated filter content after applying the patch.
  * @throws If the provided checksum doesn't match the calculated checksum.
@@ -74,7 +116,6 @@ const parseRcsOperation = (rcsOperation: string): RcsOperation => {
 export const applyRcsPatch = (
     filterContent: string[],
     patch: string[],
-    endOfFile: string,
     checksum?: string,
 ): string => {
     // Make a copy
@@ -88,6 +129,11 @@ export const applyRcsPatch = (
 
     for (let index = 0; index < patch.length; index += 1) {
         const patchLine = patch[index];
+
+        // Skip empty lines
+        if (patchLine === '') {
+            continue;
+        }
 
         const parsedRcsOperation = parseRcsOperation(patchLine);
         const {
@@ -128,7 +174,7 @@ export const applyRcsPatch = (
         }
     }
 
-    const updatedFilter = lines.join(endOfFile);
+    const updatedFilter = lines.join('');
 
     if (checksum) {
         const c = calculateChecksum(updatedFilter);
@@ -142,66 +188,189 @@ export const applyRcsPatch = (
 };
 
 /**
- * Updates a filter content using an RCS (Revision Control System) patch
- * retrieved from a specified URL.
+ * Checks if a patch has expired based on its timestamp and time-to-live (TTL).
  *
- * @param filterUrl The URL where the RCS patch can be obtained.
- * @param filterContent The original filter content as a string.
- *
- * @returns The updated filter content after applying the patch.
+ * @param diffPath - The path of the patch file.
+ * @returns `true` if the patch has expired, `false` otherwise.
  */
-export const applyPatch = async (
-    filterUrl: string,
-    filterContent: string,
-): Promise<string> => {
-    const filterLines = filterContent.split(/\r?\n/);
-    const diffPath = parseTag(DIFF_PATH_TAG, filterLines);
+const checkPatchExpired = (diffPath: string): boolean => {
+    const {
+        resolution,
+        epochTimestamp,
+        time,
+    } = parsePatchName(diffPath);
 
-    if (!diffPath) {
-        console.warn('Filter is not support diff updates');
-        return filterContent;
-    }
+    const createdMs = timestampWithResolutionToMs(epochTimestamp, resolution);
+    const ttlMs = timestampWithResolutionToMs(time, resolution);
 
-    let patch: string[] = [];
+    return Date.now() > createdMs + ttlMs;
+};
 
+/**
+ * Downloads a file from a specified URL and returns its content as a string.
+ *
+ * @param baseURL The base URL of the file.
+ * @param fileUrl The URL from which to download the file.
+ * @param isFileHostedViaNetworkProtocol Indicates whether the file is hosted
+ * via a network protocol (http/https).
+ * If `isFileHostedViaNetworkProtocol` is `true`, the function accepts HTTP
+ * status codes based on the `AcceptableHttpStatusCodes` enumeration.
+ * If `isFileHostedViaNetworkProtocol` is `false`, only 2xx status codes are
+ * accepted, indicating a successful local or similar file request.
+ * Any other status codes result in an error.
+ * @param isRecursiveUpdate Indicates whether the function is called recursively.
+ * @param log A function that logs a message.
+ *
+ * @returns A promise that resolves to the content of the downloaded file
+ * as a string.
+ *
+ * @throws {Error} If there is an error during the network request, the file
+ * is not found, or the file is empty.
+ */
+const downloadFile = async (
+    baseURL: string,
+    fileUrl: string,
+    isFileHostedViaNetworkProtocol: boolean,
+    isRecursiveUpdate: boolean,
+    log: (message: string) => void,
+): Promise<string[] | null> => {
     try {
-        // Cut last part of path
-        const baseURL = filterUrl
-            .split('/')
-            .slice(0, -1)
-            .join('/');
-        const request = await axios.get(diffPath, { baseURL });
+        const request = await axios.get(
+            fileUrl,
+            {
+                baseURL,
+                validateStatus: (status) => {
+                    if (!isFileHostedViaNetworkProtocol) {
+                        // For local and similar files, accept only 2xx status codes.
+                        return status >= 200 && status < 300;
+                    }
 
-        if (request.status === HttpStatusCode.NotFound || request.status === HttpStatusCode.NoContent) {
-            console.info('Update is not available.');
-            return filterContent;
-        }
-
-        if (request.status === HttpStatusCode.Ok && request.data === '') {
-            console.info('Update is not available.');
-            return filterContent;
-        }
-
-        patch = request.data.split(/\r?\n/);
-    } catch (e) {
-        console.error('Cannot load patch due to: ', e);
-
-        return filterContent;
-    }
-
-    try {
-        const diffDirective = parseDiffDirective(filterLines[0]);
-        const updatedFilter = applyRcsPatch(
-            filterLines,
-            patch,
-            filterContent.endsWith('\r\n') ? '\r\n' : '\n',
-            diffDirective ? diffDirective.checksum : undefined,
+                    // For network-hosted files, accept status codes defined in AcceptableHttpStatusCodes.
+                    const acceptableHttpStatusCodes: number[] = Object.values(AcceptableHttpStatusCodes);
+                    return acceptableHttpStatusCodes.includes(status);
+                },
+            },
         );
 
-        return updatedFilter;
-    } catch (e) {
-        console.warn('Error during applying patch: ', e);
+        if (request.status === AcceptableHttpStatusCodes.NotFound
+            || request.status === AcceptableHttpStatusCodes.NoContent) {
+            if (!isRecursiveUpdate) {
+                log('Update is not available.');
+            }
+            return null;
+        }
 
-        return filterContent;
+        if (request.status === AcceptableHttpStatusCodes.Ok && request.data === '') {
+            if (!isRecursiveUpdate) {
+                log('Update is not available.');
+            }
+            return null;
+        }
+
+        return splitByLines(request.data);
+    } catch (e) {
+        throw new Error(`Error during network request: ${e}`, { cause: e });
     }
+};
+
+/**
+ * Applies an RCS (Revision Control System) patch to update a filter's content.
+ *
+ * @param params The parameters for applying the patch {@link ApplyPatchParams}.
+ *
+ * @returns A promise that resolves to the updated filter content after applying the patch,
+ * or null if there is no Diff-Path tag in the filter.
+ *
+ * @throws {Error} If there is an error during the patch application process
+ * or during network request.
+ */
+export const applyPatch = async (params: ApplyPatchParams): Promise<string | null> => {
+    // Wrapper to hide the callStack parameter from the user.
+    const applyPatchWrapper = async (innerParams: ApplyPatchParams & { callStack: number }): Promise<string | null> => {
+        const {
+            filterUrl,
+            filterContent,
+            verbose = false,
+            callStack,
+        } = innerParams;
+
+        const filterLines = splitByLines(filterContent);
+        const diffPath = parseTag(DIFF_PATH_TAG, filterLines);
+
+        const log = createLogger(verbose);
+
+        if (!diffPath) {
+            return null;
+        }
+
+        // If the patch has not expired yet, return the filter content without changes.
+        if (!checkPatchExpired(diffPath)) {
+            return filterContent;
+        }
+
+        let patch: string[] = [];
+
+        try {
+            // Remove the last part of the URL, which is the file name, and replace
+            // it with the patch name because the patch name is relative to the filter URL.
+            const baseURL = filterUrl
+                .split('/')
+                .slice(0, -1)
+                .join('/');
+
+            const res = await downloadFile(
+                baseURL,
+                diffPath,
+                diffPath.startsWith('http://') || diffPath.startsWith('https://'),
+                callStack > 0,
+                log,
+            );
+
+            // Update is not available yet.
+            if (res === null) {
+                return filterContent;
+            }
+
+            patch = res;
+        } catch (e) {
+            throw new Error(`Error during downloading patch file from "${diffPath}": ${e}`, { cause: e });
+        }
+
+        let updatedFilter: string = '';
+
+        try {
+            const diffDirective = parseDiffDirective(patch[0]);
+            updatedFilter = applyRcsPatch(
+                filterLines,
+                // Remove the diff directive if it exists in the patch.
+                diffDirective ? patch.slice(1) : patch,
+                diffDirective ? diffDirective.checksum : undefined,
+            );
+        } catch (e) {
+            throw new Error(`Error during applying the patch from "${diffPath}": ${e}`, { cause: e });
+        }
+
+        try {
+            const recursiveUpdatedFilter = await applyPatchWrapper({
+                filterUrl,
+                filterContent: updatedFilter,
+                callStack: callStack + 1,
+                verbose,
+            });
+
+            // It can be null if the filter dropped support for Diff-Path in new versions.
+            if (recursiveUpdatedFilter === null) {
+                // Then we return the filter with the last successfully applied patch.
+                return updatedFilter;
+            }
+
+            return recursiveUpdatedFilter;
+        } catch (e) {
+            // If we catch an error during the recursive update, we will return
+            // the last successfully applied patch.
+            return updatedFilter;
+        }
+    };
+
+    return applyPatchWrapper(Object.assign(params, { callStack: 0 }));
 };
