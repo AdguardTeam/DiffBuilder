@@ -37,7 +37,13 @@ Test:
 
             ls -laht
 
-            yarn install ${bamboo.varsYarn}
+            # Exclude '--ignore-platform' from yarn arguments to fix build
+            originalValue="$bamboo_varsYarn"
+
+            # Use sed to replace "--ignore-platform" with an empty string
+            modifiedValue=$(echo "$originalValue" | sed 's/--ignore-platform//g')
+
+            yarn install ${modifiedVarsYarn}
             yarn lint
             yarn test
 
