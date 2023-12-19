@@ -224,5 +224,22 @@ describe('check diff-updater', () => {
             // afterAll handler.
             await server.start();
         });
+
+        it('not throws error on file:// requests', async () => {
+            const oldestFilterPathName = './fixtures/1/filter_v1.0.0.txt';
+            const oldestFilterUrl = new URL(oldestFilterPathName, `file://${__dirname}`).toString();
+            const oldestFilter = await fs.promises.readFile(
+                path.resolve(__dirname, oldestFilterPathName),
+                'utf-8',
+            );
+
+            const res = await applyPatch({
+                filterUrl: oldestFilterUrl,
+                filterContent: oldestFilter,
+            });
+
+            // Filter should stay the same
+            expect(res).toStrictEqual(oldestFilter);
+        });
     });
 });

@@ -8,6 +8,7 @@ import { parseDiffDirective } from '../common/diff-directive';
 import { parsePatchName, timestampWithResolutionToMs } from '../common/patch-name';
 import { splitByLines } from '../common/split-by-lines';
 import { createLogger } from '../common/create-logger';
+import { getErrorMessage } from '../common/get-error-message';
 
 /**
  * Interface describing the parameters of the applyPatch function.
@@ -269,7 +270,11 @@ const downloadFile = async (
 
         return splitByLines(request.data);
     } catch (e) {
-        throw new Error(`Error during network request: ${e}`, { cause: e });
+        if (!isFileHostedViaNetworkProtocol) {
+            log(`Error during file request to "${baseURL}"/"${fileUrl}": ${getErrorMessage(e)}`);
+            return null;
+        }
+        throw new Error(`Error during network request: ${getErrorMessage(e)}`, { cause: e });
     }
 };
 
@@ -321,7 +326,7 @@ export const applyPatch = async (params: ApplyPatchParams): Promise<string | nul
             const res = await downloadFile(
                 baseURL,
                 diffPath,
-                diffPath.startsWith('http://') || diffPath.startsWith('https://'),
+                baseURL.startsWith('http://') || baseURL.startsWith('https://'),
                 callStack > 0,
                 log,
             );
@@ -333,7 +338,8 @@ export const applyPatch = async (params: ApplyPatchParams): Promise<string | nul
 
             patch = res;
         } catch (e) {
-            throw new Error(`Error during downloading patch file from "${diffPath}": ${e}`, { cause: e });
+            // eslint-disable-next-line max-len
+            throw new Error(`Error during downloading patch file from "${diffPath}": ${getErrorMessage(e)}`, { cause: e });
         }
 
         let updatedFilter: string = '';
@@ -347,7 +353,7 @@ export const applyPatch = async (params: ApplyPatchParams): Promise<string | nul
                 diffDirective ? diffDirective.checksum : undefined,
             );
         } catch (e) {
-            throw new Error(`Error during applying the patch from "${diffPath}": ${e}`, { cause: e });
+            throw new Error(`Error during applying the patch from "${diffPath}": ${getErrorMessage(e)}`, { cause: e });
         }
 
         try {
