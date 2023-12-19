@@ -1,0 +1,22 @@
+/**
+ * @file Output the version number to a build.txt file.
+ */
+const fs = require('fs');
+const path = require('path');
+const { version } = require('../package.json');
+
+const PATH = '../';
+const FILENAME = 'build.txt';
+
+const main = (): void => {
+    const content = `version=${version}`;
+    const dir = path.resolve(__dirname, PATH);
+
+    if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir);
+    }
+
+    fs.writeFileSync(path.resolve(__dirname, PATH, FILENAME), content);
+};
+
+main();

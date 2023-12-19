@@ -1,0 +1,58 @@
+---
+version: 2
+plan:
+  project-key: AJL
+  key: DIFFBUILDERTESTS
+  name: diff builder - tests
+variables:
+  dockerNode: adguard/node-ssh:18.13--1
+
+stages:
+  - Test:
+      manual: false
+      final: false
+      jobs:
+        - Test
+
+Test:
+  key: TEST
+  other:
+    clean-working-dir: true
+  docker:
+    image: ${bamboo.dockerNode}
+    volumes:
+      ${system.YARN_DIR}: "${bamboo.cacheYarn}"
+  tasks:
+    - checkout:
+        force-clean-build: true
+    - script:
+        interpreter: SHELL
+        scripts:
+          - |-
+            set -x
+            set -e
+
+            # Fix mixed logs
+            exec 2>&1
+
+            ls -laht
+
+            yarn install ${bamboo.varsYarn}
+            yarn lint
+            yarn test
+
+            rm -rf node_modules
+  requirements:
+    - adg-docker: true
+
+branches:
+  create: for-pull-request
+  delete:
+    after-deleted-days: '1'
+    after-inactive-days: '5'
+  link-to-jira: true
+
+notifications: []
+labels: []
+other:
+  concurrent-build-plugin: system-default

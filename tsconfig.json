@@ -15,6 +15,7 @@
   "include": [
     "src",
     "tests",
+    "tasks",
     "rollup.config.ts",
     ".eslintrc.js",
     "jest.config.ts",
