@@ -1,11 +1,12 @@
-import { calculateChecksum } from '../src/common/calculate-checksum';
+import { calculateChecksumSHA1 } from '../src/common/calculate-checksum';
 import { createDiffDirective } from '../src/common/diff-directive';
 import { parseTag } from '../src/common/parse-tag';
 import { TypesOfChanges } from '../src/common/types-of-change';
 import {
     detectTypeOfChanges,
     createPatch,
-    findAndUpdateTag,
+    checkIfPatchIsEmpty,
+    updateDiffPathInNewFilter,
 } from '../src/diff-builder/build';
 import {
     FILE_1,
@@ -26,6 +27,16 @@ import { FILTER_2_V_1_0_0, FILTER_2_V_1_0_1, PATCH_2_1_0_0 } from './stubs/valid
 import { FILTER_3_V_1_0_0, FILTER_3_V_1_0_1, PATCH_3_1_0_0 } from './stubs/name';
 import { FILTER_WITHOUT_EMPTY_LINE, FILTER_WITH_EMPTY_LINE, FILTER_WITH_SEVERAL_EMPTY_LINES } from './stubs/new-lines';
 import { splitByLines } from '../src/common/split-by-lines';
+import { findAndUpdateTag } from '../src/diff-builder/tags';
+import { EMPTY_PATCH_1, EMPTY_PATCH_2, NOT_EMPTY_PATCH_1 } from './stubs/empty-patches';
+import {
+    FILTER_CHECKSUM_1_V_1_0_0,
+    FILTER_CHECKSUM_1_V_1_0_1,
+    PATCH_CHECKSUM_1_1_0_0,
+    FILTER_CHECKSUM_1_V_1_0_1_DIFF_DIRECTIVE,
+    FILTER_CHECKSUM_2_V_1_0_0,
+    FILTER_CHECKSUM_2_V_1_0_1,
+} from './stubs/filters-with-checksum';
 
 describe('check diff-builder', () => {
     it('check detectTypeOfChanges', () => {
@@ -39,7 +50,7 @@ describe('check diff-builder', () => {
     it('check calculateChecksum', () => {
         const content = FILTER_1_V_1_0_1;
 
-        const checksum = calculateChecksum(content);
+        const checksum = calculateChecksumSHA1(content);
 
         expect(checksum).toEqual('17fbb4b268e4d176fbd75fd627ba2e84b945e077');
     });
@@ -103,6 +114,49 @@ describe('check diff-builder', () => {
         expect(content).toEqual(FILTER_1_V_1_0_0);
     });
 
+    it('check checkIfPatchIsEmpty', () => {
+        expect(checkIfPatchIsEmpty(EMPTY_PATCH_1)).toBeTruthy();
+        expect(checkIfPatchIsEmpty(EMPTY_PATCH_2)).toBeTruthy();
+        expect(checkIfPatchIsEmpty(NOT_EMPTY_PATCH_1)).toBeFalsy();
+        expect(checkIfPatchIsEmpty(NOT_EMPTY_PATCH_1)).toBeFalsy();
+    });
+
+    describe('check updateDiffPathInNewFilter', () => {
+        it('checks case when Diff-Path placed on the first line after Checksum tag', () => {
+            const filter1 = FILTER_CHECKSUM_2_V_1_0_0;
+            const filter2 = FILTER_CHECKSUM_2_V_1_0_1;
+
+            // Emulate changes
+            const updatedFilter1 = filter1
+                .replace('Version: v1.0.0', 'Version: v1.0.1')
+                .replace('example.org', 'example.com');
+
+            const updatedFilter1WithTags = updateDiffPathInNewFilter(
+                splitByLines(updatedFilter1),
+                '../patches/1/1-m-28378192-60.patch',
+            );
+
+            expect(updatedFilter1WithTags.join('')).toEqual(filter2);
+        });
+
+        it('checks case when Diff-Path placed NOT on the first line after Checksum tag', () => {
+            const filter1 = FILTER_CHECKSUM_1_V_1_0_0;
+            const filter2 = FILTER_CHECKSUM_1_V_1_0_1;
+
+            // Emulate changes
+            const updatedFilter1 = filter1
+                .replace('Version: v1.0.0', 'Version: v1.0.1')
+                .replace('example.org', 'example.com');
+
+            const updatedFilter1WithTags = updateDiffPathInNewFilter(
+                splitByLines(updatedFilter1),
+                '../patches/1/1-m-28378192-60.patch',
+            );
+
+            expect(updatedFilter1WithTags.join('')).toEqual(filter2);
+        });
+    });
+
     describe('check createPatch', () => {
         const cases = [
             [FILTER_1_V_1_0_0, FILTER_1_V_1_0_1, PATCH_1_1_0_0],
@@ -136,6 +190,17 @@ describe('check diff-builder', () => {
             const directive = 'diff checksum:17fbb4b268e4d176fbd75fd627ba2e84b945e077 lines:4';
 
             expect(patch).toEqual(directive.concat('\n').concat(PATCH_1_1_0_0));
+        });
+
+        it('recalculates checksum after insert Diff-Path but before patch', () => {
+            const filter1 = FILTER_CHECKSUM_1_V_1_0_0;
+            const filter2 = FILTER_CHECKSUM_1_V_1_0_1;
+
+            const patch = createPatch(filter1, filter2);
+            expect(patch).toEqual(PATCH_CHECKSUM_1_1_0_0);
+
+            const diffDirective = createDiffDirective(splitByLines(filter1), filter2, patch);
+            expect(diffDirective).toEqual(FILTER_CHECKSUM_1_V_1_0_1_DIFF_DIRECTIVE);
         });
     });
 });

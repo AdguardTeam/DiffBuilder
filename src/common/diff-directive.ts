@@ -20,7 +20,7 @@
  * @see @link [Diff Files Format](https://github.com/ameshkov/diffupdates?tab=readme-ov-file#diff-files-format)
  */
 
-import { calculateChecksum } from './calculate-checksum';
+import { calculateChecksumSHA1 } from './calculate-checksum';
 import { DIFF_PATH_TAG } from './constants';
 import { parseTag } from './parse-tag';
 
@@ -66,7 +66,7 @@ export const createDiffDirective = (
 ): string => {
     const diffPath = parseTag(DIFF_PATH_TAG, oldFilterContent);
     const [, resourceName] = (diffPath || '').split('#');
-    const checksum = calculateChecksum(newFilterContent);
+    const checksum = calculateChecksumSHA1(newFilterContent);
     const lines = patchContent.split('\n').length - 1;
 
     const directive = [DIFF_DIRECTIVE];

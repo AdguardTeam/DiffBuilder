@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 import { parseTag } from '../common/parse-tag';
-import { calculateChecksum } from '../common/calculate-checksum';
+import { calculateChecksumSHA1 } from '../common/calculate-checksum';
 import { DIFF_PATH_TAG } from '../common/constants';
 import { TypesOfChanges } from '../common/types-of-change';
 import { parseDiffDirective } from '../common/diff-directive';
@@ -178,7 +178,7 @@ export const applyRcsPatch = (
     const updatedFilter = lines.join('');
 
     if (checksum) {
-        const c = calculateChecksum(updatedFilter);
+        const c = calculateChecksumSHA1(updatedFilter);
 
         if (c !== checksum) {
             throw new Error('Checksums are not equal.');
