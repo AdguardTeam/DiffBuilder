@@ -33,3 +33,19 @@ export const FILTER_CHECKSUM_2_V_1_0_1 = `! Checksum: bbIycvMnuGxvqqneHnvTbQ
 ! Title: Diff Updates Simple Example List
 ! Version: v1.0.1
 ||example.com^`;
+
+export const FILTER_CHECKSUM_3_V_1_0_0 = `! Checksum: u/T910qA7w7mONgsMzuCOg
+! Diff-Path: ../patches/1/1-m-28378132-60.patch
+! Title: Diff Updates Simple Example List
+! Version: v1.0.0
+! Checksum: CCC
+! Diff-Path: ../another_patch.patch
+||example.org^`;
+
+export const FILTER_CHECKSUM_3_V_1_0_1 = `! Checksum: BlDDiB3PAOSr0uK+yG78pw
+! Diff-Path: ../patches/1/1-m-28378192-60.patch
+! Title: Diff Updates Simple Example List
+! Version: v1.0.1
+! Checksum: CCC
+! Diff-Path: ../another_patch_2.patch
+||example.org^`;

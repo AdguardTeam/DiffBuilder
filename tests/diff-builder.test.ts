@@ -36,6 +36,8 @@ import {
     FILTER_CHECKSUM_1_V_1_0_1_DIFF_DIRECTIVE,
     FILTER_CHECKSUM_2_V_1_0_0,
     FILTER_CHECKSUM_2_V_1_0_1,
+    FILTER_CHECKSUM_3_V_1_0_0,
+    FILTER_CHECKSUM_3_V_1_0_1,
 } from './stubs/filters-with-checksum';
 
 describe('check diff-builder', () => {
@@ -155,6 +157,23 @@ describe('check diff-builder', () => {
 
             expect(updatedFilter1WithTags.join('')).toEqual(filter2);
         });
+
+        it('checks case when there are two checksums in file', () => {
+            const filter1 = FILTER_CHECKSUM_3_V_1_0_0;
+            const filter2 = FILTER_CHECKSUM_3_V_1_0_1;
+
+            // Emulate changes
+            const updatedFilter1 = filter1
+                .replace('v1.0.0', 'v1.0.1')
+                .replace('another_patch.patch', 'another_patch_2.patch');
+
+            const updatedFilter1WithTags = updateDiffPathInNewFilter(
+                splitByLines(updatedFilter1),
+                '../patches/1/1-m-28378192-60.patch',
+            );
+
+            expect(updatedFilter1WithTags.join('')).toEqual(filter2);
+        });
     });
 
     describe('check createPatch', () => {
@@ -192,7 +211,7 @@ describe('check diff-builder', () => {
             expect(patch).toEqual(directive.concat('\n').concat(PATCH_1_1_0_0));
         });
 
-        it('recalculates checksum after insert Diff-Path but before patch', () => {
+        it('creates patch with correct checksums changes', () => {
             const filter1 = FILTER_CHECKSUM_1_V_1_0_0;
             const filter2 = FILTER_CHECKSUM_1_V_1_0_1;
 
