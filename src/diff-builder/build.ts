@@ -11,7 +11,7 @@ import { calculateChecksumMD5, calculateChecksumSHA1 } from '../common/calculate
 import { Resolution, createPatchName } from '../common/patch-name';
 import { splitByLines } from '../common/split-by-lines';
 import { createLogger } from '../common/create-logger';
-import { findAndUpdateTag, removeTag } from './tags';
+import { createTag, findAndUpdateTag, removeTag } from './tags';
 
 const DEFAULT_PATCH_TTL_SECONDS = 60 * 60 * 24 * 7;
 
@@ -324,17 +324,15 @@ export const updateDiffPathInNewFilter = (
         updatedFilter,
     );
 
-    // Remove checksum tag, because we changed filter's content via adding
-    // Diff-Path tag, so we need to recalculate checksum.
+    // Remove first found checksum tag, because we changed filter's content
+    // via adding Diff-Path tag, so we need to recalculate checksum.
     updatedFilter = removeTag(CHECKSUM_TAG, updatedFilter);
 
-    // Calculate checksum for new filter and update it in the filter.
+    // Calculate checksum for new filter and insert it in the filter
+    // to the first line.
     const updatedChecksum = calculateChecksumMD5(updatedFilter.join(''));
-    updatedFilter = findAndUpdateTag(
-        CHECKSUM_TAG,
-        updatedChecksum,
-        updatedFilter,
-    );
+    const checksumTag = createTag(CHECKSUM_TAG, updatedChecksum);
+    updatedFilter.unshift(checksumTag);
 
     return updatedFilter;
 };
