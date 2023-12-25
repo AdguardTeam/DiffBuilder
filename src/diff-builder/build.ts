@@ -3,15 +3,18 @@ import fs from 'fs';
 
 import * as Diff from 'diff';
 
-import { parseTag } from '../common/parse-tag';
 import { CHECKSUM_TAG, DIFF_PATH_TAG } from '../common/constants';
 import { TypesOfChanges } from '../common/types-of-change';
 import { createDiffDirective } from '../common/diff-directive';
-import { calculateChecksumMD5, calculateChecksumSHA1 } from '../common/calculate-checksum';
+import { calculateChecksumMD5 } from '../common/calculate-checksum';
 import { Resolution, createPatchName } from '../common/patch-name';
 import { splitByLines } from '../common/split-by-lines';
 import { createLogger } from '../common/create-logger';
-import { createTag, findAndUpdateTag, removeTag } from './tags';
+import {
+    createTag,
+    parseTag,
+    removeTag,
+} from './tags';
 
 const DEFAULT_PATCH_TTL_SECONDS = 60 * 60 * 24 * 7;
 
@@ -34,9 +37,7 @@ export interface BuildDiffParams {
     newFilterPath: string;
 
     /**
-     * The relative path to the directory where the patch should be saved.
-     * The patch filename will be `<path_to_patches>/$PATCH_VERSION.patch`,
-     * where `$PATCH_VERSION` is the value of `Version` from `<old_filter>`.
+     * The relative path to the directory with patches.
      */
     patchesPath: string;
 
@@ -215,26 +216,26 @@ export const createPatch = (oldFile: string, newFile: string): string => {
 };
 
 /**
- * Scans `pathToPatches` for files with the "*.patch" pattern and deletes those
+ * Scans `absolutePatchesPath` for files with the "*.patch" pattern and deletes those
  * whose `mtime` has expired.
  *
- * @param pathToPatches Directory for scan.
+ * @param absolutePatchesPath Directory for scan.
  * @param deleteOlderThanSeconds The time to live for the patch in *seconds*.
  *
  * @returns Returns number of deleted patches.
  */
 const deleteOutdatedPatches = async (
-    pathToPatches: string,
+    absolutePatchesPath: string,
     deleteOlderThanSeconds: number,
 ): Promise<number> => {
-    const files = await fs.promises.readdir(pathToPatches);
+    const files = await fs.promises.readdir(absolutePatchesPath);
     const tasksToDeleteFiles: Promise<void>[] = [];
     for (const file of files) {
         if (!file.endsWith(PATCH_EXTENSION)) {
             continue;
         }
 
-        const filePath = path.resolve(pathToPatches, file);
+        const filePath = path.resolve(absolutePatchesPath, file);
 
         // eslint-disable-next-line no-await-in-loop
         const fileStat = await fs.promises.stat(filePath);
@@ -254,104 +255,159 @@ const deleteOutdatedPatches = async (
 };
 
 /**
- * Updates the 'Diff-Path' tag value and recalculates the checksum, updating it
- * in the 'Checksum' tag of the new filter. This process ensures that changes
- * in these tags are reflected in the patch, allowing them to be applied
- * to the old filter. If the old and new filters are identical except for
- * these tags, the patch will contain only changes related
- * to 'Diff-Path' and 'Checksum'.
+ * Checks if the provided file content contains a checksum tag within its first 200 characters.
+ * This approach is selected to exclude parsing checksums from included filters.
  *
- * To verify the patch's significance, it's essential to check that it contains
- * more than just these tag updates. The checksum, typically on the first line,
- * is checked in the first three lines of the patch in RCS format. The next
- * three lines are examined for changes to the 'Diff-Path' tag, which can appear
- * anywhere in the new filter.
+ * @param file The file content as a string.
  *
- * @param patch The patch array to be evaluated.
- * @returns Returns `true` if the patch contains only tag changes or is
- * otherwise empty, indicating no substantial differences between the filters.
- * Returns `false` if there are other changes.
+ * @returns `true` if the checksum tag is found, otherwise `false`.
  */
-export const checkIfPatchIsEmpty = (patch: string): boolean => {
-    const lines = splitByLines(patch);
+export const hasChecksum = (file: string): boolean => {
+    const partOfFile = file.substring(0, 200);
+    const lines = splitByLines(partOfFile);
 
-    if (lines.length === 4
-        && lines[0].startsWith('d1 2')
-        && lines[1].startsWith('a2 2')
-        && lines[2].startsWith(`! ${CHECKSUM_TAG}`)
-        && lines[3].startsWith(`! ${DIFF_PATH_TAG}`)
-    ) {
-        return true;
-    }
-
-    if (lines.length === 6
-        && lines[0].startsWith('d1 1')
-        && lines[1].startsWith('a1 1')
-        && lines[2].startsWith(`! ${CHECKSUM_TAG}`)
-        && lines[3].startsWith('d')
-        && lines[4].startsWith('a')
-        && lines[5].startsWith(`! ${DIFF_PATH_TAG}`)
-    ) {
-        return true;
-    }
-
-    return false;
+    return lines.some((line) => line.startsWith(`! ${CHECKSUM_TAG}`));
 };
 
 /**
- * Updates the 'Diff-Path' tag in a given filter array and recalculates the checksum.
- * The function first updates the 'Diff-Path' tag with the provided value, then removes
- * the existing checksum tag (if any), as the filter content has been altered.
- * It then calculates a new checksum for the updated filter and adds
- * this checksum tag to the filter. This process ensures that the filter's
- * metadata (Diff-Path and Checksum tags) accurately reflects its current content.
+ * Updates the 'Diff-Path' tag and optionally recalculates and adds a new
+ * checksum tag in a provided array of filter lines.
  *
- * @param filterToUpdate An array of strings representing the filter lines to be updated.
+ * @param filterContent Filter content that needs to be updated.
  * @param diffPathTagValue The new value to be set for the 'Diff-Path' tag.
  *
- * @returns A new array of filter lines with the updated 'Diff-Path' tag and recalculated checksum.
+ * @returns Updated filter content.
  */
-export const updateDiffPathInNewFilter = (
-    filterToUpdate: string[],
+export const updateTags = (
+    filterContent: string,
     diffPathTagValue: string,
-): string[] => {
-    // Make a copy
-    let updatedFilter = filterToUpdate.slice();
+): string => {
+    // Split the content of the filters into lines.
+    let newFileSplitted = splitByLines(filterContent);
 
-    updatedFilter = findAndUpdateTag(
-        DIFF_PATH_TAG,
-        diffPathTagValue,
-        updatedFilter,
-    );
+    // Remove tags 'Diff-Path' and 'Checksum' from new filterContent.
+    newFileSplitted = removeTag(DIFF_PATH_TAG, removeTag(CHECKSUM_TAG, newFileSplitted));
 
-    // Remove first found checksum tag, because we changed filter's content
-    // via adding Diff-Path tag, so we need to recalculate checksum.
-    updatedFilter = removeTag(CHECKSUM_TAG, updatedFilter);
+    const diffPath = createTag(DIFF_PATH_TAG, diffPathTagValue);
+    newFileSplitted.unshift(diffPath);
 
-    // Calculate checksum for new filter and insert it in the filter
-    // to the first line.
-    const updatedChecksum = calculateChecksumMD5(updatedFilter.join(''));
-    const checksumTag = createTag(CHECKSUM_TAG, updatedChecksum);
-    updatedFilter.unshift(checksumTag);
+    // If filter had checksum, calculate and insert a new checksum tag at the start of the filter
+    if (hasChecksum(filterContent)) {
+        const updatedChecksum = calculateChecksumMD5(newFileSplitted.join(''));
+        const checksumTag = createTag(CHECKSUM_TAG, updatedChecksum);
+        newFileSplitted.unshift(checksumTag);
+    }
 
-    return updatedFilter;
+    return newFileSplitted.join('');
 };
 
 /**
- * First verifies the version tags in the old and new filters, ensuring they are
- * present and in the correct order. Then calculates the difference between
- * the old and new filters in [RCS format](https://www.gnu.org/software/diffutils/manual/diffutils.html#RCS).
- * Optionally, calculates a diff directive with the name, checksum of new filter,
- * and line count, extracting the name from the `Diff-Name` tag in the old filter.
- * The resulting diff is saved to a patch file with the version number in the
- * specified path. Also updates the `Diff-Path` tag in the new filter.
- * Additionally, an empty patch file for the newer version is created.
- * Finally, scans the patch directory and deletes patches with the ".patch"
- * extension that have an mtime older than the specified threshold.
+ * Determines if there are significant changes between two files, excluding
+ * changes in 'Checksum' and 'Diff-Path' tags.
+ * The function splits the file contents into lines, removes the mentioned tags,
+ * and then compares the contents to determine if there are meaningful changes.
  *
- * TODO: Add tests for files operations.
+ * @param oldFile The content of the old file as a string.
+ * @param newFile The content of the new file as a string.
  *
- * @param params - Parameters for building the diff patch.
+ * @returns `true` if there are significant changes, otherwise `false`.
+ */
+export const hasChanges = (
+    oldFile: string,
+    newFile: string,
+): boolean => {
+    // Split the content of the filters into lines.
+    let oldFileSplitted = splitByLines(oldFile);
+    let newFileSplitted = splitByLines(newFile);
+
+    // Remove 'Checksum' and 'Diff-Path' tags from both old and new filters.
+    oldFileSplitted = removeTag(DIFF_PATH_TAG, removeTag(CHECKSUM_TAG, oldFileSplitted));
+    newFileSplitted = removeTag(DIFF_PATH_TAG, removeTag(CHECKSUM_TAG, newFileSplitted));
+
+    const oldFileHasChecksum = hasChecksum(oldFile);
+    const newFileHasChecksum = hasChecksum(newFile);
+
+    // Determine if there are meaningful changes in the files, excluding the 'Diff-Path' and 'Checksum' tags.
+    // This comparison considers both the content and the presence of checksum tags in the old and new files.
+    if (oldFileSplitted.join('') === newFileSplitted.join('') && oldFileHasChecksum === newFileHasChecksum) {
+        return false;
+    }
+
+    return true;
+};
+
+/**
+ * Asynchronously updates the 'Diff-Path' tag in a new filter file and creates
+ * a diff patch compared to an old file.
+ * This function ensures that changes to 'Diff-Path' and 'Checksum' are correctly
+ * included in the diff patch.
+ * It throws an error if the old and new patch names are the same.
+ *
+ * @param oldFile The content of the old file as a string.
+ * @param newFile The content of the new file as a string.
+ * @param checksumFlag Flag to determine if a checksum should be added to the patch.
+ * @param pathToPatchesRelativeToNewFilter The relative path to the patches directory from the new filter's location.
+ * @param newFilePatchName The proposed diff name for the new file.
+ * @param oldFilePatchName The diff name in the old file, or null if not present.
+ *
+ * @throws Error if the old and new patch names are the same.
+ *
+ * @returns A promise that resolves to an object containing the updated content
+ * of the new file and the generated diff patch.
+ */
+export const updateFileAndCreatePatch = async (
+    oldFile: string,
+    newFile: string,
+    checksumFlag: boolean,
+    pathToPatchesRelativeToNewFilter: string,
+    newFilePatchName: string,
+    oldFilePatchName: string | null,
+): Promise<{
+    newFileWithUpdatedTags: string,
+    patch: string,
+}> => {
+    // Verify that the patch names are not the same.
+    if (oldFilePatchName === newFilePatchName) {
+        // eslint-disable-next-line max-len
+        throw new Error(`The old patch name "${oldFilePatchName}" and the new patch name "${newFilePatchName}" are the same. Consider changing the unit of measure or waiting.`);
+    }
+
+    // Note: Update 'Diff-Path' and 'Checksum' before calculating the diff
+    // to ensure their changes are included in the resulting diff patch.
+    const newFilterDiffPathTagValue = path.join(pathToPatchesRelativeToNewFilter, newFilePatchName);
+
+    const newFileWithUpdatedTags = updateTags(
+        newFile,
+        newFilterDiffPathTagValue,
+    );
+
+    // Generate the diff patch.
+    let patch = createPatch(oldFile, newFileWithUpdatedTags);
+
+    // Optionally add a checksum to the patch.
+    if (checksumFlag) {
+        const diffDirective = createDiffDirective(oldFilePatchName, newFileWithUpdatedTags, patch);
+        patch = diffDirective.concat('\n', patch);
+    }
+
+    return {
+        newFileWithUpdatedTags,
+        patch,
+    };
+};
+
+/**
+ * Asynchronously builds a diff between two filter files and handles related
+ * file operations. Resolves paths, creates necessary folders, deletes outdated
+ * patches, and checks for changes in filter content.
+ * If there are changes other than those with 'Diff-Path' and 'Checksum' tags,
+ * it updates the content of the new filter file with new 'Diff-Path'
+ * and 'Checksum' tags and creates patch files accordingly.
+ *
+ * @param params The parameters including paths, resolution, and other settings
+ * for diff generation.
+ *
+ * @returns A promise that resolves when the diff operation is complete.
  */
 export const buildDiff = async (params: BuildDiffParams): Promise<void> => {
     const {
@@ -361,118 +417,101 @@ export const buildDiff = async (params: BuildDiffParams): Promise<void> => {
         name,
         time,
         resolution = Resolution.Hours,
-        checksum = false,
+        checksum: checksumFlag = false,
         deleteOlderThanSec = DEFAULT_PATCH_TTL_SECONDS,
         verbose = false,
     } = params;
 
     const log = createLogger(verbose);
 
-    // Paths
-    const prevListPath = path.resolve(process.cwd(), oldFilterPath);
-    const newListPath = path.resolve(process.cwd(), newFilterPath);
-    const pathToPatches = path.resolve(process.cwd(), patchesPath);
+    // Resolve all necessary paths.
+    const absoluteOldListPath = path.resolve(process.cwd(), oldFilterPath);
+    const absoluteNewListPath = path.resolve(process.cwd(), newFilterPath);
+    const absolutePatchesPath = path.resolve(process.cwd(), patchesPath);
+    const pathToPatchesRelativeToNewFilter = path.relative(
+        path.dirname(newFilterPath),
+        absolutePatchesPath,
+    );
 
-    // Filters' content
-    const oldFile = await fs.promises.readFile(prevListPath, { encoding: 'utf-8' });
-    let newFile = await fs.promises.readFile(newListPath, { encoding: 'utf-8' });
+    log(`Checking diff between "${absoluteOldListPath}" and "${absoluteNewListPath}".`);
+    log(`Path to patches: "${absolutePatchesPath}".`);
 
-    // Splitted filters' content
-    const oldFileSplitted = splitByLines(oldFile);
-    let newFileSplitted = splitByLines(newFile);
-
-    const oldFileDiffName = parseTag(DIFF_PATH_TAG, oldFileSplitted);
-
-    // Create folder for patches if it doesn't exists.
-    if (!fs.existsSync(pathToPatches)) {
-        await fs.promises.mkdir(pathToPatches, { recursive: true });
-        log(`Folder for patches does not exists, created at '${pathToPatches}'.`);
+    // Create the patches folder if it doesn't exist.
+    if (!fs.existsSync(absolutePatchesPath)) {
+        await fs.promises.mkdir(absolutePatchesPath, { recursive: true });
+        log(`Created missing patches folder at "${absolutePatchesPath}".`);
     }
 
-    // Scan patches folder and delete outdated patches.
+    // Scan the patches folder and delete outdated patches.
     const deleted = await deleteOutdatedPatches(
-        pathToPatches,
+        absolutePatchesPath,
         deleteOlderThanSec,
     );
 
-    log(`Deleted outdated patches: ${deleted}`);
+    if (deleted > 0) {
+        log(`Deleted ${deleted} outdated patches from "${absolutePatchesPath}".`);
+    }
 
-    // If files are the same and old filter already has diff-path - there are nothing to do.
-    // Otherwise, create empty patch for future version and exit.
-    if (calculateChecksumSHA1(oldFile) === calculateChecksumSHA1(newFile) && oldFileDiffName) {
-        log('Files are the same. Nothing to do.');
+    // Read the content of the filters.
+    const oldFile = await fs.promises.readFile(absoluteOldListPath, { encoding: 'utf-8' });
+    const newFile = await fs.promises.readFile(absoluteNewListPath, { encoding: 'utf-8' });
+
+    // Check for any changes except changes with Diff-Path and Checksum
+    // in the filters.
+    if (!hasChanges(oldFile, newFile)) {
+        // If no significant changes, undo removal of 'Diff-Path' (it happens
+        // by run `compiler` which currently not supported `Diff-Path` tag and
+        // always remove it, even if filter has not changes)
+        // and save the old file content to the new file.
+        await fs.promises.writeFile(absoluteNewListPath, oldFile);
+
+        log('No significant changes found.');
+        log(`Reverted any removal of 'Diff-Path' in the new filter "${absoluteNewListPath}".`);
+
         return;
     }
 
-    // Generate name for new patch
-    const newFileDiffName = createPatchName({ name, resolution, time });
+    // Retrieve and save the 'Diff-Path' tag from the old filter before removal.
+    let oldFilePatchName = parseTag(DIFF_PATH_TAG, splitByLines(oldFile));
+    // Remove resourceName part after "#" sign if it exists.
+    oldFilePatchName = oldFilePatchName ? oldFilePatchName.split('#')[0] : null;
 
-    if (oldFileDiffName === newFileDiffName) {
-        // eslint-disable-next-line max-len
-        throw new Error(`Old patch name "${oldFileDiffName}" and new patch name "${newFileDiffName}" are the same. Change the unit of measure to a smaller one or wait.`);
-    }
+    // Generate a name for the new patch.
+    const newFilePatchName = createPatchName({ name, resolution, time });
 
-    // Create empty patch for future version if it doesn't exists.
-    const emptyPatchForNewVersion = path.join(pathToPatches, newFileDiffName);
+    const {
+        newFileWithUpdatedTags,
+        patch,
+    } = await updateFileAndCreatePatch(
+        oldFile,
+        newFile,
+        checksumFlag,
+        pathToPatchesRelativeToNewFilter,
+        newFilePatchName,
+        oldFilePatchName,
+    );
+
+    // Write the updated content to the new filter with an updated 'Diff-Path' and 'Checksum'.
+    await fs.promises.writeFile(absoluteNewListPath, newFileWithUpdatedTags);
+    log(`Updated 'Diff-Path' and 'Checksum' tags in the new filter at "${absoluteNewListPath}".`);
+
+    // Create an empty patch for the future version if it doesn't exist.
+    const emptyPatchForNewVersion = path.join(absolutePatchesPath, newFilePatchName);
     if (!fs.existsSync(emptyPatchForNewVersion)) {
         await fs.promises.writeFile(emptyPatchForNewVersion, '');
-        log(`Created patch for new filter at ${emptyPatchForNewVersion}.`);
+        log(`Created a patch for the new filter at ${emptyPatchForNewVersion}.`);
     }
 
-    // Note: Update `Diff-Path` and 'Checksum' before calculating the diff
-    // to ensure that changing `Diff-Path` and 'Checksum' will be correctly
-    // included in the resulting diff patch.
-    const pathToPatchesRelativeToNewFilter = path.relative(
-        path.dirname(newFilterPath),
-        pathToPatches,
-    );
-    const newFilterDiffPathTagValue = path.join(pathToPatchesRelativeToNewFilter, newFileDiffName);
-    newFileSplitted = updateDiffPathInNewFilter(
-        newFileSplitted,
-        newFilterDiffPathTagValue,
-    );
-    newFile = newFileSplitted.join('');
-
-    // Because we already created empty patch for new version, we also need to
-    // update `Diff-Path` (which contains path to created empty patch) and
-    // `Checksum` tags in the new filter.
-    await fs.promises.writeFile(
-        newListPath,
-        newFile,
-    );
-
-    // We cannot save diff, if diff in old file doesn't exists.
-    if (!oldFileDiffName) {
-        log('Not found "Diff-Path" in the old filter. Patch for old file can not be created.');
+    // If 'Diff-Path' is not found in the old filter, a patch for the old file
+    // cannot be created.
+    if (!oldFilePatchName) {
+        log('No "Diff-Path" found in the old filter. Cannot create a patch for the old file.');
         return;
     }
 
-    // Calculate diff
-    let patch = createPatch(oldFile, newFile);
-
-    // If patch is empty - don't write it to file.
-    if (checkIfPatchIsEmpty(patch)) {
-        log('No changes detected between old and new files. Patch would not be created.');
-        return;
-    }
-
-    // Add checksum to patch if requested
-    if (checksum) {
-        const diffDirective = createDiffDirective(oldFileSplitted, newFile, patch);
-        patch = diffDirective.concat('\n', patch);
-    }
-
-    // Diff-Path contains path relative to the filter path, so we need
-    // to resolve path.
-    const oldFilePatch = path.resolve(
-        path.dirname(prevListPath),
-        oldFileDiffName,
-    );
-    // Save diff to patch file.
-    await fs.promises.writeFile(
-        oldFilePatch,
-        patch,
-    );
-
-    log(`Wrote patch to: ${oldFilePatch}`);
+    // 'Diff-Path' contains a path relative to the filter path, requiring path resolution.
+    const oldFilePatch = path.resolve(path.dirname(absoluteOldListPath), oldFilePatchName);
+    // Save the diff to the patch file.
+    await fs.promises.writeFile(oldFilePatch, patch);
+    log(`Saved the patch to: ${oldFilePatch}`);
 };

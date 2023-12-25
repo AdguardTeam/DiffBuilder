@@ -1,6 +1,5 @@
 import axios from 'axios';
 
-import { parseTag } from '../common/parse-tag';
 import { calculateChecksumSHA1 } from '../common/calculate-checksum';
 import { DIFF_PATH_TAG } from '../common/constants';
 import { TypesOfChanges } from '../common/types-of-change';
@@ -9,6 +8,7 @@ import { parsePatchName, timestampWithResolutionToMs } from '../common/patch-nam
 import { splitByLines } from '../common/split-by-lines';
 import { createLogger } from '../common/create-logger';
 import { getErrorMessage } from '../common/get-error-message';
+import { parseTag } from '../diff-builder/tags';
 
 /**
  * Interface describing the parameters of the applyPatch function.
@@ -300,7 +300,9 @@ export const applyPatch = async (params: ApplyPatchParams): Promise<string | nul
         } = innerParams;
 
         const filterLines = splitByLines(filterContent);
-        const diffPath = parseTag(DIFF_PATH_TAG, filterLines);
+
+        // Remove resourceName part after "#" sign if it exists.
+        const diffPath = parseTag(DIFF_PATH_TAG, filterLines)?.split('#')[0];
 
         const log = createLogger(verbose);
 

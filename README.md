@@ -24,7 +24,7 @@ Where:
 
 - `<old_filter>` — the relative path to the old filter.
 - `<new_filter>` — the relative path to the new filter.
-- `<path_to_patches>` — the relative path to the directory where the patch should be saved.
+- `<path_to_patches>` — the relative path to the directory with patches.
 - `-n <name>` or `--name=<name>` — name of the patch file, an arbitrary string to identify the patch.
   Must be a string of length 1-64 with no spaces or other special characters.
 - `-r <timestampResolution>` or `--resolution=<timestampResolution>` — is an optional flag,
@@ -49,50 +49,35 @@ Where:
     - `lines` — the number of lines that follow, making up the RCS diff block.
       Note that `lines` are counted using the same algorithm as used by `wc -l`, essentially counting `\n`.
 
-## Algorithm
+## Algorithm Overview
 
-### 1. Logging and File Path Resolution
+### 1. Setup
+   - Resolve absolute paths for the old and new filters and the patches directory.
 
-    - Create a logger for verbose output if `verbose` is `true`.
-    - Resolve the absolute paths for `oldFilterPath`, `newFilterPath`, and `patchesPath`.
+### 2. Prepare Patch Directory
+   - Ensure the patches directory exists, creating it if necessary.
 
-### 2. Read and Split Filter Contents
+### 3. Clean Up Old Patches
+   - Delete any outdated patches from the patches directory.
 
-    - Read the contents of `oldFilterPath` and `newFilterPath` into `oldFile` and `newFile`.
-    - Determine the line endings for `oldFile` and `newFile`.
-    - Split the contents of `oldFile` and `newFile` into arrays of lines (`oldFileSplitted` and `newFileSplitted`).
+### 4. Read Filters and Detect Changes
+   - Read and split the old and new filter files into lines.
+   - Check if there are significant changes between the two sets of lines, excluding 'Diff-Path' and 'Checksum' tags.
 
-### 3. Parse `Diff-Path` Tag
+### 5. Handle No Changes
+   - If no significant changes are found, revert any changes in the new filter and exit.
 
-    - Parse the `Diff-Path` tag from `oldFileSplitted` and store it in `oldFileDiffName`.
+### 6. Process Changes
+   - Generate a new patch name and validate its uniqueness.
+   - Update the 'Diff-Path' tag in the new filter.
+   - Create a diff patch between the old and new filters.
+   - Optionally, add a checksum to the patch.
 
-### 4. Create Patches Folder
+### 7. Finalize
+   - Write the updated new filter back to its file.
+   - Create an empty patch file for future use if necessary.
+   - Save the diff patch to the appropriate file.
 
-    - Create the `patchesPath` directory recursively if it doesn't exist. Log if it's created.
-
-### 5. Delete Outdated Patches
-
-    - Scan `patchesPath` and delete outdated patches older than `deleteOlderThanSec`. Log the number of deleted patches.
-
-## 6. Check for File Sameness
-
-   - Compare the checksums of `oldFile` and `newFile`. If they match, log and exit.
-
-## 7. Generate and Save the Diff
-
-    - Generate a new patch name based on parameters.
-    - Create an empty patch file for the new version if it doesn't exist.
-    - Update the `Diff-Path` tag in `newFileSplitted`.
-    - Calculate and save the difference between `oldFile` and `newFile` as a patch file.
-
-## 8. Log Patch File Path and Completion
-
-    - Log the path where the patch file is saved.
-    - The process is completed.
-
-## Important
-
-The `oldFilterPath` is expected to already contain a `Diff-Path` tag.
 
 ## API
 

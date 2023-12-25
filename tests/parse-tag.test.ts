@@ -1,6 +1,6 @@
 import { DIFF_PATH_TAG } from '../src/common/constants';
-import { parseTag } from '../src/common/parse-tag';
 import { splitByLines } from '../src/common/split-by-lines';
+import { parseTag } from '../src/diff-builder/tags';
 import {
     EXAMPLE_DIFF_PATH_TAG,
     FILTER_1,

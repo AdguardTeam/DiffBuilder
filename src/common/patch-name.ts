@@ -155,16 +155,16 @@ export const createPatchName = (options: PatchName): string => {
 
     const epochTimestamp = generateCreationTime(resolution);
 
-    const newFileDiffName = [name];
+    const newFilePatchName = [name];
 
     if (resolution && resolution !== Resolution.Hours) {
-        newFileDiffName.push(resolution);
+        newFilePatchName.push(resolution);
     }
 
-    newFileDiffName.push(epochTimestamp.toString());
-    newFileDiffName.push(time.toString());
+    newFilePatchName.push(epochTimestamp.toString());
+    newFilePatchName.push(time.toString());
 
-    return newFileDiffName.join('-').concat(FILE_EXTENSION);
+    return newFilePatchName.join('-').concat(FILE_EXTENSION);
 };
 
 /**

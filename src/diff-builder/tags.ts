@@ -1,4 +1,5 @@
-import { parseTag } from '../common/parse-tag';
+// Lines of filter metadata to parse
+const AMOUNT_OF_LINES_TO_PARSE = 50;
 
 /**
  * Creates tag for filter list metadata.
@@ -10,6 +11,35 @@ import { parseTag } from '../common/parse-tag';
  */
 export const createTag = (tagName: string, value: string): string => {
     return `! ${tagName}: ${value}\n`;
+};
+
+/**
+ * Finds value of specified header tag in filter rules text.
+ *
+ * @param tagName Filter header tag name.
+ * @param rules Lines of filter rules text.
+ *
+ * @returns Trimmed value of specified header tag or null if tag not found.
+ */
+export const parseTag = (tagName: string, rules: string[]): string | null => {
+    // Look up no more than 50 first lines
+    const maxLines = Math.min(AMOUNT_OF_LINES_TO_PARSE, rules.length);
+    for (let i = 0; i < maxLines; i += 1) {
+        const rule = rules[i];
+
+        if (!rule) {
+            continue;
+        }
+
+        const search = `! ${tagName}: `;
+        const indexOfSearch = rule.indexOf(search);
+
+        if (indexOfSearch >= 0) {
+            return rule.substring(indexOfSearch + search.length).trim();
+        }
+    }
+
+    return null;
 };
 
 /**
@@ -29,41 +59,15 @@ export const removeTag = (
     filterContent: string[],
 ): string[] => {
     // Make copy
-    const updatedFile = filterContent.slice();
+    const updatedFile = filterContent.slice(
+        0,
+        Math.min(AMOUNT_OF_LINES_TO_PARSE, filterContent.length),
+    );
 
     const tagIdx = updatedFile.findIndex((line) => line.includes(tagName));
 
     if (tagIdx >= 0) {
         updatedFile.splice(tagIdx, 1);
-    }
-
-    return updatedFile;
-};
-
-/**
- * Finds tag by tag name in filter content and if found - updates with provided
- * value, if not - creates new tag and insert to first line of the filter.
- *
- * @param tagName Name of the tag.
- * @param tagValue Value of the tag.
- * @param filterContent Array of filter's rules.
- *
- * @returns Filter content with updated or created tag.
- */
-export const findAndUpdateTag = (
-    tagName: string,
-    tagValue: string,
-    filterContent: string[],
-): string[] => {
-    // Make copy
-    const updatedFile = filterContent.slice();
-    const updatedTag = createTag(tagName, tagValue);
-
-    if (parseTag(tagName, updatedFile)) {
-        const tagIdx = updatedFile.findIndex((line) => line.includes(tagName));
-        updatedFile[tagIdx] = updatedTag;
-    } else {
-        updatedFile.unshift(updatedTag);
     }
 
     return updatedFile;

@@ -21,8 +21,6 @@
  */
 
 import { calculateChecksumSHA1 } from './calculate-checksum';
-import { DIFF_PATH_TAG } from './constants';
-import { parseTag } from './parse-tag';
 
 const DIFF_DIRECTIVE = 'diff';
 const DIFF_DIRECTIVE_NAME = 'name';
@@ -53,19 +51,18 @@ interface DiffDirective {
  * Creates `diff` directive with `Diff-Name` from filter (if found) and with
  * checksum of the new filter and number of lines of the patch.
  *
- * @param oldFilterContent Old filter content.
+ * @param oldDiffPathTag Diff-Path tag from old filter.
  * @param newFilterContent New filter content.
  * @param patchContent Patch content.
  *
  * @returns Created `diff` directive.
  */
 export const createDiffDirective = (
-    oldFilterContent: string[],
+    oldDiffPathTag: string | null,
     newFilterContent: string,
     patchContent: string,
 ): string => {
-    const diffPath = parseTag(DIFF_PATH_TAG, oldFilterContent);
-    const [, resourceName] = (diffPath || '').split('#');
+    const [, resourceName] = (oldDiffPathTag || '').split('#');
     const checksum = calculateChecksumSHA1(newFilterContent);
     const lines = patchContent.split('\n').length - 1;
 
