@@ -58,7 +58,10 @@ export const removeTag = (
     tagName: string,
     filterContent: string[],
 ): string[] => {
-    // Make copy
+    // Make copy of array to avoid mutation.
+    const copy = filterContent.slice();
+
+    // Cut first 50 lines to parse. We don't need to parse all file.
     const updatedFile = filterContent.slice(
         0,
         Math.min(AMOUNT_OF_LINES_TO_PARSE, filterContent.length),
@@ -67,8 +70,8 @@ export const removeTag = (
     const tagIdx = updatedFile.findIndex((line) => line.includes(tagName));
 
     if (tagIdx >= 0) {
-        updatedFile.splice(tagIdx, 1);
+        copy.splice(tagIdx, 1);
     }
 
-    return updatedFile;
+    return copy;
 };
