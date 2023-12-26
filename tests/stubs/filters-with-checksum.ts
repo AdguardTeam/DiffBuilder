@@ -49,3 +49,17 @@ export const FILTER_CHECKSUM_3_V_1_0_1 = `! Checksum: ofZAa0I54y1eSvFOPN2k0Q
 ! Checksum: CCC
 ! Diff-Path: ../included_filter_patch_2.patch
 ||example.com^`;
+
+export const FILTER_CHECKSUM_4_V_1_0_0 = `![Adblock Plus 2.0]
+! Checksum: I+PzPesxUcb2EYZDBYOhcQ
+! Diff-Path: ../patches/1/1-m-28378132-60.patch
+! Title: Diff Updates Simple Example List
+! Version: v1.0.0
+||example.org^`;
+
+export const FILTER_CHECKSUM_4_V_1_0_1 = `![Adblock Plus 2.0]
+! Checksum: jjIddpQl99Rd/0TbrZgY1A
+! Diff-Path: ../patches/1/1-m-28378192-60.patch
+! Title: Diff Updates Simple Example List
+! Version: v1.0.1
+||example.com^`;

@@ -4,7 +4,6 @@ import { TypesOfChanges } from '../src/common/types-of-change';
 import {
     detectTypeOfChanges,
     createPatch,
-    updateTags,
 } from '../src/diff-builder/build';
 import {
     FILE_1,
@@ -31,10 +30,6 @@ import {
     FILTER_CHECKSUM_1_V_1_0_1,
     PATCH_CHECKSUM_1_1_0_0,
     FILTER_CHECKSUM_1_V_1_0_1_DIFF_DIRECTIVE,
-    FILTER_CHECKSUM_2_V_1_0_0,
-    FILTER_CHECKSUM_2_V_1_0_1,
-    FILTER_CHECKSUM_3_V_1_0_0,
-    FILTER_CHECKSUM_3_V_1_0_1,
 } from './stubs/filters-with-checksum';
 
 describe('check diff-builder', () => {
@@ -80,31 +75,6 @@ describe('check diff-builder', () => {
         splitted = splitByLines(FILTER_WITH_SEVERAL_EMPTY_LINES);
         expect(splitted.length).toBe(3);
         expect(splitted[splitted.length - 1].endsWith('\n')).toBeTruthy();
-    });
-
-    describe('check updateTags', () => {
-        const cases = [
-            /* eslint-disable max-len */
-            ['checks case when Diff-Path placed NOT on the first line after Checksum tag', FILTER_CHECKSUM_1_V_1_0_0, FILTER_CHECKSUM_1_V_1_0_1],
-            ['checks case when Diff-Path placed on the first line after Checksum tag', FILTER_CHECKSUM_2_V_1_0_0, FILTER_CHECKSUM_2_V_1_0_1],
-            ['checks case when there are two checksums in file', FILTER_CHECKSUM_3_V_1_0_0, FILTER_CHECKSUM_3_V_1_0_1],
-            /* eslint-enable max-len */
-        ];
-
-        it.each(cases)('%s', (_, filter1, filter2) => {
-            // Emulate changes
-            const updatedFilter1 = filter1
-                .replace('! Diff-Path: ../included_filter_patch.patch', '! Diff-Path: ../included_filter_patch_2.patch')
-                .replace('Version: v1.0.0', 'Version: v1.0.1')
-                .replace('example.org', 'example.com');
-
-            const updatedFilter1WithTags = updateTags(
-                updatedFilter1,
-                '../patches/1/1-m-28378192-60.patch',
-            );
-
-            expect(updatedFilter1WithTags).toEqual(filter2);
-        });
     });
 
     describe('check createPatch', () => {

@@ -285,17 +285,33 @@ export const updateTags = (
     // Split the content of the filters into lines.
     let newFileSplitted = splitByLines(filterContent);
 
+    let userAgent: string | undefined;
+    // User agent tag.
+    if (newFileSplitted[0].startsWith('![') || newFileSplitted[0].startsWith('[')) {
+        userAgent = newFileSplitted.shift();
+    }
+
     // Remove tags 'Diff-Path' and 'Checksum' from new filterContent.
     newFileSplitted = removeTag(DIFF_PATH_TAG, removeTag(CHECKSUM_TAG, newFileSplitted));
 
     const diffPath = createTag(DIFF_PATH_TAG, diffPathTagValue);
     newFileSplitted.unshift(diffPath);
 
+    if (userAgent !== undefined) {
+        newFileSplitted.unshift(userAgent);
+    }
+
     // If filter had checksum, calculate and insert a new checksum tag at the start of the filter
     if (hasChecksum(filterContent)) {
         const updatedChecksum = calculateChecksumMD5(newFileSplitted.join(''));
         const checksumTag = createTag(CHECKSUM_TAG, updatedChecksum);
-        newFileSplitted.unshift(checksumTag);
+
+        if (userAgent !== undefined) {
+            // Insert Checksum after the userAgent header.
+            newFileSplitted.splice(1, 0, checksumTag);
+        } else {
+            newFileSplitted.unshift(checksumTag);
+        }
     }
 
     return newFileSplitted.join('');
