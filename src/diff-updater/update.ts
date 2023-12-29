@@ -1,5 +1,3 @@
-import axios from 'axios';
-
 import { calculateChecksumSHA1 } from '../common/calculate-checksum';
 import { DIFF_PATH_TAG } from '../common/constants';
 import { TypesOfChanges } from '../common/types-of-change';
@@ -236,39 +234,38 @@ const downloadFile = async (
     log: (message: string) => void,
 ): Promise<string[] | null> => {
     try {
-        const request = await axios.get(
-            fileUrl,
-            {
-                baseURL,
-                validateStatus: (status) => {
-                    if (!isFileHostedViaNetworkProtocol) {
-                        // For local and similar files, accept only 2xx status codes.
-                        return status >= 200 && status < 300;
-                    }
+        const response = await fetch(new URL(fileUrl, `${baseURL}/`));
 
-                    // For network-hosted files, accept status codes defined in AcceptableHttpStatusCodes.
-                    const acceptableHttpStatusCodes: number[] = Object.values(AcceptableHttpStatusCodes);
-                    return acceptableHttpStatusCodes.includes(status);
-                },
-            },
-        );
+        if (!isFileHostedViaNetworkProtocol && !(response.status >= 200 && response.status < 300)) {
+            // For local and similar files, accept only 2xx status codes.
+            log(`Error during file request: ${response.status} ${response.statusText}`);
+            return null;
+        }
 
-        if (request.status === AcceptableHttpStatusCodes.NotFound
-            || request.status === AcceptableHttpStatusCodes.NoContent) {
+        if (isFileHostedViaNetworkProtocol) {
+            // For network-hosted files, accept status codes defined in AcceptableHttpStatusCodes.
+            const acceptableHttpStatusCodes: number[] = Object.values(AcceptableHttpStatusCodes);
+            if (!acceptableHttpStatusCodes.includes(response.status)) {
+                log(`Error during network request: ${response.status} ${response.statusText}`);
+                return null;
+            }
+        }
+
+        if ((response.status === AcceptableHttpStatusCodes.NotFound
+            || response.status === AcceptableHttpStatusCodes.NoContent) && !isRecursiveUpdate) {
+            log('Update is not available.');
+            return null;
+        }
+
+        const data = await response.text();
+        if (response.status === AcceptableHttpStatusCodes.Ok && data === '') {
             if (!isRecursiveUpdate) {
                 log('Update is not available.');
             }
             return null;
         }
 
-        if (request.status === AcceptableHttpStatusCodes.Ok && request.data === '') {
-            if (!isRecursiveUpdate) {
-                log('Update is not available.');
-            }
-            return null;
-        }
-
-        return splitByLines(request.data);
+        return splitByLines(data);
     } catch (e) {
         if (!isFileHostedViaNetworkProtocol) {
             log(`Error during file request to "${baseURL}"/"${fileUrl}": ${getErrorMessage(e)}`);

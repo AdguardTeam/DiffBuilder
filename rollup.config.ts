@@ -66,7 +66,6 @@ const builderApiConfig = defineConfig({
         'fs',
         'path',
         'crypto',
-        'axios',
     ],
     plugins: commonPlugins.concat([
         // Allow node_modules resolution, so you can use 'external' to control
@@ -96,9 +95,6 @@ const updaterApiConfig = defineConfig({
             format: 'esm',
             sourcemap: false,
         },
-    ],
-    external: [
-        'axios',
     ],
     plugins: commonPlugins.concat([
         resolve({ browser: true }),
