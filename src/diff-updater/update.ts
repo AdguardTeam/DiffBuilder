@@ -279,6 +279,32 @@ const downloadFile = async (
 };
 
 /**
+ * Extracts the base URL or directory path from a given URL or file path.
+ * It identifies the appropriate delimiter (forward slash '/' for URLs and
+ * POSIX file paths, or backslash '\' for Windows file paths), splits the string
+ * using this delimiter, and then rejoins the parts excluding the last segment.
+ * This effectively removes the file name or the last part of the path,
+ * returning only the base path.
+ *
+ * @param filterUrl The URL or file path from which to extract the base.
+ *
+ * @returns The base URL or directory path without the last segment.
+ */
+export const extractBaseUrl = (filterUrl: string): string => {
+    let splitDelimeter = '/';
+    if (filterUrl.includes('\\')) {
+        splitDelimeter = '\\';
+    }
+
+    // Remove the last part of the URL, which is the file name, and replace
+    // it with the patch name because the patch name is relative to the filter URL.
+    return filterUrl
+        .split(splitDelimeter)
+        .slice(0, -1)
+        .join(splitDelimeter);
+};
+
+/**
  * Applies an RCS (Revision Control System) patch to update a filter's content.
  *
  * @param params The parameters for applying the patch {@link ApplyPatchParams}.
@@ -318,17 +344,11 @@ export const applyPatch = async (params: ApplyPatchParams): Promise<string | nul
         let patch: string[] = [];
 
         try {
-            // Remove the last part of the URL, which is the file name, and replace
-            // it with the patch name because the patch name is relative to the filter URL.
-            const baseURL = filterUrl
-                .split('/')
-                .slice(0, -1)
-                .join('/');
-
+            const baseUrl = extractBaseUrl(filterUrl);
             const res = await downloadFile(
-                baseURL,
+                baseUrl,
                 diffPath,
-                baseURL.startsWith('http://') || baseURL.startsWith('https://'),
+                baseUrl.startsWith('http://') || baseUrl.startsWith('https://'),
                 callStack > 0,
                 log,
             );
