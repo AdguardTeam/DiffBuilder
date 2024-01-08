@@ -1,6 +1,9 @@
 import type { Config } from 'jest';
 
 const config: Config = {
+    transformIgnorePatterns: [
+        '/node_modules/(?!diff).+\\.js$',
+    ],
     transform: {
         '.+\\.(js|ts)$': '@swc/jest',
     },

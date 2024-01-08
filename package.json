@@ -53,7 +53,7 @@
   "dependencies": {
     "commander": "^11.1.0",
     "crypto-js": "^4.2.0",
-    "diff": "5.1.0"
+    "diff": "git+https://github.com/kpdecker/jsdiff.git#c6498e3"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^25.0.7",

@@ -1,7 +1,10 @@
+/// <reference path="../../types/diff.d.ts" />
+
 import path from 'path';
 import fs from 'fs';
 
-import * as Diff from 'diff';
+// eslint-disable-next-line import/extensions
+import { structuredPatch } from 'diff/src/index.js';
 
 import { CHECKSUM_TAG, DIFF_PATH_TAG } from '../common/constants';
 import { TypesOfChanges } from '../common/types-of-change';
@@ -108,7 +111,7 @@ export const detectTypeOfChanges = (line: string): TypesOfChanges | null => {
  * @returns Difference between old and new files in RCS format.
  */
 export const createPatch = (oldFile: string, newFile: string): string => {
-    const { hunks } = Diff.structuredPatch(
+    const { hunks } = structuredPatch(
         'oldFile',
         'newFile',
         oldFile,
