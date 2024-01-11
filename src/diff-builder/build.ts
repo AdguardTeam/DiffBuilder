@@ -297,7 +297,9 @@ export const updateTags = (
     // Remove tags 'Diff-Path' and 'Checksum' from new filterContent.
     newFileSplitted = removeTag(DIFF_PATH_TAG, removeTag(CHECKSUM_TAG, newFileSplitted));
 
-    const diffPath = createTag(DIFF_PATH_TAG, diffPathTagValue);
+    const lineEnding = newFileSplitted[0].endsWith('\r\n') ? '\r\n' : '\n';
+
+    const diffPath = createTag(DIFF_PATH_TAG, diffPathTagValue, lineEnding);
     newFileSplitted.unshift(diffPath);
 
     if (userAgent !== undefined) {
@@ -307,7 +309,7 @@ export const updateTags = (
     // If filter had checksum, calculate and insert a new checksum tag at the start of the filter
     if (hasChecksum(filterContent)) {
         const updatedChecksum = calculateChecksumMD5(newFileSplitted.join(''));
-        const checksumTag = createTag(CHECKSUM_TAG, updatedChecksum);
+        const checksumTag = createTag(CHECKSUM_TAG, updatedChecksum, lineEnding);
 
         if (userAgent !== undefined) {
             // Insert Checksum after the userAgent header.

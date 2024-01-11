@@ -6,11 +6,16 @@ const AMOUNT_OF_LINES_TO_PARSE = 50;
  *
  * @param tagName Name of the tag.
  * @param value Value of the tag.
+ * @param lineEnding Line ending to use in created tag.
  *
  * @returns Created tag in `! ${tagName}: ${value}` format.
  */
-export const createTag = (tagName: string, value: string): string => {
-    return `! ${tagName}: ${value}\n`;
+export const createTag = (
+    tagName: string,
+    value: string,
+    lineEnding: string,
+): string => {
+    return `! ${tagName}: ${value}${lineEnding}`;
 };
 
 /**

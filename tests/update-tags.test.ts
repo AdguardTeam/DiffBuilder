@@ -1,3 +1,4 @@
+import { splitByLines } from '../src/common/split-by-lines';
 import { updateTags } from '../src/diff-builder/build';
 import {
     FILTER_CHECKSUM_1_V_1_0_0,
@@ -21,6 +22,9 @@ describe('check updateTags', () => {
     ];
 
     it.each(cases)('%s', (_, filter1, filter2) => {
+        // Checksum should be on the first line
+        const originFirstLine = splitByLines(filter1)[0];
+
         // Emulate changes
         const updatedFilter1 = filter1
             .replace('! Diff-Path: ../included_filter_patch.patch', '! Diff-Path: ../included_filter_patch_2.patch')
@@ -32,6 +36,10 @@ describe('check updateTags', () => {
             '../patches/1/1-m-28378192-60.patch',
         );
 
-        expect(updatedFilter1WithTags).toEqual(filter2);
+        expect(updatedFilter1WithTags).toStrictEqual(filter2);
+
+        const firstLine = splitByLines(updatedFilter1WithTags)[0];
+        const lineEnding = originFirstLine.endsWith('\r\n') ? '\r\n' : '\n';
+        expect(firstLine.endsWith(lineEnding)).toBe(true);
     });
 });
