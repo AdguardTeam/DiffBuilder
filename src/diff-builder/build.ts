@@ -10,7 +10,12 @@ import { CHECKSUM_TAG, DIFF_PATH_TAG } from '../common/constants';
 import { TypesOfChanges } from '../common/types-of-change';
 import { createDiffDirective } from '../common/diff-directive';
 import { calculateChecksumMD5 } from '../common/calculate-checksum';
-import { Resolution, createPatchName } from '../common/patch-name';
+import {
+    Resolution,
+    createPatchName,
+    parsePatchName,
+    timestampWithResolutionToMs,
+} from '../common/patch-name';
 import { splitByLines } from '../common/split-by-lines';
 import { createLogger } from '../common/create-logger';
 import {
@@ -238,15 +243,18 @@ const deleteOutdatedPatches = async (
             continue;
         }
 
-        const filePath = path.resolve(absolutePatchesPath, file);
+        const {
+            resolution,
+            epochTimestamp,
+        } = parsePatchName(file);
 
-        // eslint-disable-next-line no-await-in-loop
-        const fileStat = await fs.promises.stat(filePath);
+        const createdMs = timestampWithResolutionToMs(epochTimestamp, resolution);
 
         const deleteOlderThanMs = deleteOlderThanSeconds * 1000;
-        const deleteOlderThanDate = new Date(new Date().getTime() - deleteOlderThanMs);
+        const deleteOlderThanDateMs = new Date().getTime() - deleteOlderThanMs;
 
-        if (fileStat.mtime.getTime() < deleteOlderThanDate.getTime()) {
+        if (createdMs < deleteOlderThanDateMs) {
+            const filePath = path.join(absolutePatchesPath, file);
             // eslint-disable-next-line no-await-in-loop
             tasksToDeleteFiles.push(fs.promises.rm(filePath));
         }
