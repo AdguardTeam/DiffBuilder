@@ -8,7 +8,7 @@ import { structuredPatch } from 'diff/src/index.js';
 
 import { CHECKSUM_TAG, DIFF_PATH_TAG } from '../common/constants';
 import { TypesOfChanges } from '../common/types-of-change';
-import { createDiffDirective } from '../common/diff-directive';
+import { createDiffDirective, parseDiffDirective } from '../common/diff-directive';
 import { calculateChecksumMD5 } from '../common/calculate-checksum';
 import {
     Resolution,
@@ -23,10 +23,13 @@ import {
     parseTag,
     removeTag,
 } from './tags';
+import { applyRcsPatch } from '../diff-updater/update';
 
 const DEFAULT_PATCH_TTL_SECONDS = 60 * 60 * 24 * 7;
 
 const NEW_LINE_INFO = '\\ No newline at end of file';
+
+let log: (message: string) => void;
 
 export const PATCH_EXTENSION = '.patch';
 
@@ -78,7 +81,8 @@ export interface BuildDiffParams {
     /**
      * An optional parameter, the time to live for the patch
      * in *seconds*. By default, it will be `604800` (7 days). The utility will
-     * scan `<path_to_patches>` and delete patches whose `mtime` has expired.
+     * scan `<path_to_patches>` and delete patches whose created epoch timestamp
+     * has expired.
      */
     deleteOlderThanSec?: number;
 
@@ -224,8 +228,8 @@ export const createPatch = (oldFile: string, newFile: string): string => {
 };
 
 /**
- * Scans `absolutePatchesPath` for files with the "*.patch" pattern and deletes those
- * whose `mtime` has expired.
+ * Scans `absolutePatchesPath` for files with the "*.patch" pattern and deletes
+ * those whose created epoch timestamp has expired and whose are not empty.
  *
  * @param absolutePatchesPath Directory for scan.
  * @param deleteOlderThanSeconds The time to live for the patch in *seconds*.
@@ -240,6 +244,19 @@ const deleteOutdatedPatches = async (
     const tasksToDeleteFiles: Promise<void>[] = [];
     for (const file of files) {
         if (!file.endsWith(PATCH_EXTENSION)) {
+            log(`Skipped deleting file "${file}" because its extension is not "${PATCH_EXTENSION}"`);
+            continue;
+        }
+
+        const filePath = path.join(absolutePatchesPath, file);
+
+        // eslint-disable-next-line no-await-in-loop
+        const { size } = await fs.promises.stat(filePath);
+        // If size is 0 - it means, that this patch is last active and we cannot
+        // delete it even if it is outdated, because there is active link to
+        // this patch in the filter's Diff-Path tag.
+        if (size === 0) {
+            log(`Skipped deleting file "${file}" because it is empty.`);
             continue;
         }
 
@@ -254,9 +271,11 @@ const deleteOutdatedPatches = async (
         const deleteOlderThanDateMs = new Date().getTime() - deleteOlderThanMs;
 
         if (createdMs < deleteOlderThanDateMs) {
-            const filePath = path.join(absolutePatchesPath, file);
+            log(`Deleting "${file}".`);
             // eslint-disable-next-line no-await-in-loop
             tasksToDeleteFiles.push(fs.promises.rm(filePath));
+        } else {
+            log(`Timestamp of "${file}" has not expired, deleting is skipped.`);
         }
     }
 
@@ -328,6 +347,33 @@ export const updateTags = (
     }
 
     return newFileSplitted.join('');
+};
+
+/**
+ * Validates a patch by comparing the old file with the new file after applying the patch.
+ *
+ * @param oldFile The original file content as a string.
+ * @param newFile The expected file content after the patch is applied.
+ * @param patch The patch content as a string.
+ *
+ * @returns Returns true if the patched old file matches the new file, false otherwise.
+ */
+export const isPatchValid = (
+    oldFile: string,
+    newFile: string,
+    patch: string,
+): boolean => {
+    const patchLines = splitByLines(patch);
+
+    const diffDirective = parseDiffDirective(patch[0]);
+
+    const updatedFile = applyRcsPatch(
+        splitByLines(oldFile),
+        patchLines,
+        diffDirective ? diffDirective.checksum : undefined,
+    );
+
+    return updatedFile === newFile;
 };
 
 /**
@@ -451,7 +497,7 @@ export const buildDiff = async (params: BuildDiffParams): Promise<void> => {
         verbose = false,
     } = params;
 
-    const log = createLogger(verbose);
+    log = createLogger(verbose);
 
     // Resolve all necessary paths.
     const absoluteOldListPath = path.resolve(process.cwd(), oldFilterPath);
@@ -470,6 +516,8 @@ export const buildDiff = async (params: BuildDiffParams): Promise<void> => {
         await fs.promises.mkdir(absolutePatchesPath, { recursive: true });
         log(`Created missing patches folder at "${absolutePatchesPath}".`);
     }
+
+    log(`Checking patches to delete in the patches folder: "${absolutePatchesPath}"`);
 
     // Scan the patches folder and delete outdated patches.
     const deleted = await deleteOutdatedPatches(
@@ -520,6 +568,11 @@ export const buildDiff = async (params: BuildDiffParams): Promise<void> => {
         oldFilePatchName,
     );
 
+    if (!isPatchValid(oldFile, newFileWithUpdatedTags, patch)) {
+        log('Validating generated patch failed: old file with applied patch is not equal to new file.');
+        return;
+    }
+
     // Write the updated content to the new filter with an updated 'Diff-Path' and 'Checksum'.
     await fs.promises.writeFile(absoluteNewListPath, newFileWithUpdatedTags);
     log(`Updated 'Diff-Path' and 'Checksum' tags in the new filter at "${absoluteNewListPath}".`);
@@ -539,7 +592,10 @@ export const buildDiff = async (params: BuildDiffParams): Promise<void> => {
     }
 
     // 'Diff-Path' contains a path relative to the filter path, requiring path resolution.
-    const oldFilePatch = path.resolve(path.dirname(absoluteOldListPath), oldFilePatchName);
+    // Note: resolve this relative patch path to the new filter path to ensure
+    // that folder with new filter will contain three main things: new filter itself,
+    // patch to old version and new empty patch for future changes.
+    const oldFilePatch = path.resolve(path.dirname(absoluteNewListPath), oldFilePatchName);
     // Save the diff to the patch file.
     await fs.promises.writeFile(oldFilePatch, patch);
     log(`Saved the patch to: ${oldFilePatch}`);

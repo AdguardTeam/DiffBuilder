@@ -36,8 +36,9 @@ Where:
 - `-t <expirationPeriod>` or `--time=<expirationPeriod>` — expiration time for the diff update
   (the unit depends on `resolution` parameter).
 - `-d <seconds>` or `--delete-older-than-sec=<seconds>` — an optional parameter,
-  this time *in seconds* will be used when scanning the `<path_to_patches>` folder to remove patches
-  whose `mtime` is older than the specified time. By default, it will be `604800` (7 days).
+  this time *in seconds* will be used when scanning the `<path_to_patches>` folder to remove patches,
+  which not empty and whose created epoch timestamp is older than the specified time.
+  By default, it will be `604800` (7 days).
 - `-v` or `--verbose` — verbose mode.
 - `-c` or `--checksum` — an optional flag, indicating whether it should calculate the SHA sum for the filter
   and add it to the `diff` directive with the filter name and the number of changed lines,
@@ -58,7 +59,7 @@ Where:
    - Ensure the patches directory exists, creating it if necessary.
 
 ### 3. Clean Up Old Patches
-   - Delete any outdated patches from the patches directory.
+   - Delete any outdated patches from the patches directory except empty patches.
 
 ### 4. Read Filters and Detect Changes
    - Read and split the old and new filter files into lines.
