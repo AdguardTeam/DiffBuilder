@@ -1,6 +1,6 @@
 {
   "name": "@adguard/diff-builder",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "description": "A tool for generating differential updates for filter lists.",
   "repository": {
     "type": "git",

@@ -236,18 +236,19 @@ const downloadFile = async (
     try {
         const response = await fetch(new URL(fileUrl, `${baseURL}/`));
 
+        // For local and similar files, accept only 2xx status codes.
         if (!isFileHostedViaNetworkProtocol && !(response.status >= 200 && response.status < 300)) {
-            // For local and similar files, accept only 2xx status codes.
             log(`Error during file request: ${response.status} ${response.statusText}`);
             return null;
         }
 
+        // For network-hosted files, accept status codes defined in AcceptableHttpStatusCodes.
         if (isFileHostedViaNetworkProtocol) {
-            // For network-hosted files, accept status codes defined in AcceptableHttpStatusCodes.
             const acceptableHttpStatusCodes: number[] = Object.values(AcceptableHttpStatusCodes);
             if (!acceptableHttpStatusCodes.includes(response.status)) {
-                log(`Error during network request: ${response.status} ${response.statusText}`);
-                return null;
+                const err = `Error during network request: ${response.status} ${response.statusText}`;
+                log(err);
+                throw new Error(err);
             }
         }
 
