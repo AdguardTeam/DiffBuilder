@@ -365,11 +365,11 @@ export const isPatchValid = (
 ): boolean => {
     const patchLines = splitByLines(patch);
 
-    const diffDirective = parseDiffDirective(patch[0]);
+    const diffDirective = parseDiffDirective(patchLines[0]);
 
     const updatedFile = applyRcsPatch(
         splitByLines(oldFile),
-        patchLines,
+        diffDirective ? patchLines.slice(1) : patchLines,
         diffDirective ? diffDirective.checksum : undefined,
     );
 

@@ -328,8 +328,6 @@ export const applyPatch = async (params: ApplyPatchParams): Promise<string | nul
         // Remove resourceName part after "#" sign if it exists.
         const diffPath = parseTag(DIFF_PATH_TAG, filterLines)?.split('#')[0];
 
-        const log = createLogger(verbose);
-
         if (!diffPath) {
             return null;
         }
@@ -339,6 +337,7 @@ export const applyPatch = async (params: ApplyPatchParams): Promise<string | nul
             return filterContent;
         }
 
+        const log = createLogger(verbose);
         let patch: string[] = [];
 
         try {
