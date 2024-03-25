@@ -7,6 +7,7 @@ import { splitByLines } from '../common/split-by-lines';
 import { createLogger } from '../common/create-logger';
 import { getErrorMessage } from '../common/get-error-message';
 import { parseTag } from '../diff-builder/tags';
+import { UnacceptableResponseError } from './unacceptable-response-error';
 
 /**
  * Interface describing the parameters of the applyPatch function.
@@ -223,8 +224,13 @@ const checkPatchExpired = (diffPath: string): boolean => {
  * @returns A promise that resolves to the content of the downloaded file
  * as a string.
  *
- * @throws {Error} If there is an error during the network request, the file
- * is not found, or the file is empty.
+ * @throws
+ * 1. An {@link Error} if:
+ *      - there is an error during the network request,
+ *      - the file is not found,
+ *      - or the file is empty.
+ * 2. The {@link UnacceptableResponseError} if network-hosted file request
+ * returns an unacceptable status code, e.g. 403.
  */
 const downloadFile = async (
     baseURL: string,
@@ -246,9 +252,9 @@ const downloadFile = async (
         if (isFileHostedViaNetworkProtocol) {
             const acceptableHttpStatusCodes: number[] = Object.values(AcceptableHttpStatusCodes);
             if (!acceptableHttpStatusCodes.includes(response.status)) {
-                const err = `Error during network request: ${response.status} ${response.statusText}`;
+                const err = `Unacceptable response for network request: ${response.status} ${response.statusText}`;
                 log(err);
-                throw new Error(err);
+                throw new UnacceptableResponseError(err);
             }
         }
 
@@ -268,9 +274,14 @@ const downloadFile = async (
 
         return splitByLines(data);
     } catch (e) {
+        // We ignore errors for local files
         if (!isFileHostedViaNetworkProtocol) {
             log(`Error during file request to "${baseURL}"/"${fileUrl}": ${getErrorMessage(e)}`);
             return null;
+        }
+        if (e instanceof UnacceptableResponseError) {
+            // re-throw the error as is
+            throw e;
         }
         throw new Error(`Error during network request: ${getErrorMessage(e)}`, { cause: e });
     }
@@ -310,8 +321,11 @@ export const extractBaseUrl = (filterUrl: string): string => {
  * @returns A promise that resolves to the updated filter content after applying the patch,
  * or null if there is no Diff-Path tag in the filter.
  *
- * @throws {Error} If there is an error during the patch application process
- * or during network request.
+ * @throws
+ * 1. An {@link Error} if there is an error during
+ *     - the patch application process
+ *     - during network request.
+ * 2. The {@link UnacceptableResponseError} if the network request returns an unacceptable status code.
  */
 export const applyPatch = async (params: ApplyPatchParams): Promise<string | null> => {
     // Wrapper to hide the callStack parameter from the user.
@@ -357,6 +371,10 @@ export const applyPatch = async (params: ApplyPatchParams): Promise<string | nul
 
             patch = res;
         } catch (e) {
+            if (e instanceof UnacceptableResponseError) {
+                // re-throw the error as is
+                throw e;
+            }
             // eslint-disable-next-line max-len
             throw new Error(`Error during downloading patch file from "${diffPath}": ${getErrorMessage(e)}`, { cause: e });
         }
