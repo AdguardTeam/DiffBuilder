@@ -508,6 +508,12 @@ export const buildDiff = async (params: BuildDiffParams): Promise<void> => {
         absolutePatchesPath,
     );
 
+    if (!fs.existsSync(absoluteOldListPath)) {
+        // eslint-disable-next-line max-len
+        log(`Older version for filter "${newFilterPath}" not found. Checked path: "${absolutePatchesPath}". Looks like it is the first version of the filter. Skipping diff generation.`);
+        return;
+    }
+
     log(`Checking diff between "${absoluteOldListPath}" and "${absoluteNewListPath}".`);
     log(`Path to patches: "${absolutePatchesPath}".`);
 
