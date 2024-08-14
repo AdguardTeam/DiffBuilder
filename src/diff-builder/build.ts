@@ -601,7 +601,18 @@ export const buildDiff = async (params: BuildDiffParams): Promise<void> => {
     // Note: resolve this relative patch path to the new filter path to ensure
     // that folder with new filter will contain three main things: new filter itself,
     // patch to old version and new empty patch for future changes.
-    const oldFilePatch = path.resolve(path.dirname(absoluteNewListPath), oldFilePatchName);
+    let oldFilePatch;
+    try {
+        path.resolve(path.dirname(absoluteNewListPath), oldFilePatchName);
+    } catch (e) {
+        // old patch path is invalid if it cannot be resolved
+    }
+
+    if (!oldFilePatch) {
+        log(`Old patch not found at "${oldFilePatch}". Cannot create a patch for the old file.`);
+        return;
+    }
+
     // Save the diff to the patch file.
     await fs.promises.writeFile(oldFilePatch, patch);
     log(`Saved the patch to: ${oldFilePatch}`);
