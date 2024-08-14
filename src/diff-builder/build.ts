@@ -603,6 +603,8 @@ export const buildDiff = async (params: BuildDiffParams): Promise<void> => {
     // patch to old version and new empty patch for future changes.
     let oldFilePatch;
     try {
+        // some third-party filters may already contain `Diff-Path`
+        // and its path resolving may fail
         oldFilePatch = path.resolve(path.dirname(absoluteNewListPath), oldFilePatchName);
     } catch (e) {
         // old patch path is invalid if it cannot be resolved
