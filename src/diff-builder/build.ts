@@ -1,13 +1,7 @@
-/// <reference path="../../types/diff.d.ts" />
-
 import path from 'path';
 import fs from 'fs';
 
-// eslint-disable-next-line import/extensions
-import { structuredPatch } from 'diff/src/index.js';
-
 import { CHECKSUM_TAG, DIFF_PATH_TAG } from '../common/constants';
-import { TypesOfChanges } from '../common/types-of-change';
 import { createDiffDirective, parseDiffDirective } from '../common/diff-directive';
 import { calculateChecksumMD5 } from '../common/calculate-checksum';
 import {
@@ -24,10 +18,12 @@ import {
     removeTag,
 } from './tags';
 import { applyRcsPatch } from '../diff-updater/update';
+import { getErrorMessage } from '../common/get-error-message';
+import { spawnDiff } from '../common/spawn-diff';
+import { getTempFilePaths } from '../common/get-temp-file-paths';
+import { writeToTempFiles, deleteTempFiles } from '../common/temp-files-utils';
 
 const DEFAULT_PATCH_TTL_SECONDS = 60 * 60 * 24 * 7;
-
-const NEW_LINE_INFO = '\\ No newline at end of file';
 
 let log: (message: string) => void;
 
@@ -93,146 +89,47 @@ export interface BuildDiffParams {
 }
 
 /**
- * Detects type of diff changes: add or delete.
- *
- * @param line Line of string to parse.
- *
- * @returns String type: 'Add' or 'Delete' or null if type cannot be parsed.
- */
-export const detectTypeOfChanges = (line: string): TypesOfChanges | null => {
-    if (line.startsWith('+')) {
-        return TypesOfChanges.Add;
-    }
-
-    if (line.startsWith('-')) {
-        return TypesOfChanges.Delete;
-    }
-
-    return null;
-};
-
-/**
  * Creates patch in [RCS format](https://www.gnu.org/software/diffutils/manual/diffutils.html#RCS).
  *
- * @param oldFile Old file.
- * @param newFile New file.
+ * @param oldContent Content of old file.
+ * @param newContent Content of new file.
  *
- * @returns Difference between old and new files in RCS format.
+ * @throws Error if the patch creation fails.
+ *
+ * @returns Promise resolving to the difference in RCS format.
  */
-export const createPatch = (oldFile: string, newFile: string): string => {
-    const { hunks } = structuredPatch(
-        'oldFile',
-        'newFile',
-        oldFile,
-        newFile,
-        '',
-        '',
-        {
-            context: 0,
-            ignoreCase: false,
-        },
-    );
+export const createPatch = async (oldContent: string, newContent: string): Promise<string> => {
+    const tempFiles = getTempFilePaths();
 
-    const outDiff: string[] = [];
+    try {
+        // Wait for files to be written before creating diff
+        await writeToTempFiles({
+            oldFilePath: tempFiles.oldFilePath,
+            oldContent,
+            newFilePath: tempFiles.newFilePath,
+            newContent,
+        });
 
-    let stringsToAdd: string[] = [];
-    let nStringsToDelete = 0;
+        // Generate the diff using our utility function
+        const patch = await spawnDiff(tempFiles.oldFilePath, tempFiles.newFilePath);
 
-    const collectParsedDiffBlock = (
-        curIndex: number,
-        deleted: number,
-        added: string[],
-    ): string[] => {
-        if (deleted > 0) {
-            const deleteFromPosition = curIndex;
-            const rcsLines = [`d${deleteFromPosition} ${deleted}`];
-
-            return rcsLines;
-        }
-
-        if (added.length > 0) {
-            const addFromPosition = curIndex - 1;
-            const rcsLines = [
-                `a${addFromPosition} ${added.length}`,
-                ...added,
-            ];
-
-            return rcsLines;
-        }
-
-        return [];
-    };
-
-    hunks.forEach((hunk, hunkIdx) => {
-        const { oldStart, lines } = hunk;
-
-        let fileIndexScanned = oldStart;
-
-        // Library will print some debug info so we need to skip this line.
-        const filteredLines = lines.filter((l) => l !== NEW_LINE_INFO);
-
-        for (let index = 0; index < filteredLines.length; index += 1) {
-            const line = filteredLines[index];
-
-            // Detect type of diff operation
-            const typeOfChange = detectTypeOfChanges(line);
-
-            // Library will print some debug info so we need to skip this line.
-            if (typeOfChange === null) {
-                throw new Error(`Cannot parse line: ${line}`);
-            }
-
-            if (typeOfChange === TypesOfChanges.Delete) {
-                // In RCS format we don't need content of deleted string.
-                nStringsToDelete += 1;
-            }
-            if (typeOfChange === TypesOfChanges.Add) {
-                // Slice "+" from the start of string.
-                stringsToAdd.push(line.slice(1));
-            }
-
-            // Check type of next line for possible change diff type from 'add'
-            // to 'delete' or from 'delete' to 'add'.
-            const nextLineTypeOfChange = index + 1 < filteredLines.length
-                ? detectTypeOfChanges(filteredLines[index + 1])
-                : null;
-            // If type will change - save current block
-            const typeWillChangeOnNextLine = nextLineTypeOfChange && typeOfChange !== nextLineTypeOfChange;
-            // Or if current line is the last - we need to save collected info.
-            const isLastLine = index === filteredLines.length - 1;
-            if (typeWillChangeOnNextLine || isLastLine) {
-                const diffRCSLines = collectParsedDiffBlock(
-                    fileIndexScanned,
-                    nStringsToDelete,
-                    stringsToAdd,
-                );
-                outDiff.push(...diffRCSLines);
-
-                // Drop counters
-                nStringsToDelete = 0;
-                stringsToAdd = [];
-
-                // Move scanned index
-                fileIndexScanned += index + 1;
-            }
-        }
-
-        // Check if we need to insert new line to the patch or not
-        if ((lines.filter((l) => l === NEW_LINE_INFO).length > 0 && lines[lines.length - 1] !== NEW_LINE_INFO)
-            || (lines.filter((l) => l === NEW_LINE_INFO).length === 0 && hunkIdx === hunks.length - 1)) {
-            outDiff[outDiff.length - 1] = outDiff[outDiff.length - 1].concat('\n');
-        }
-    });
-
-    return outDiff.join('\n');
+        return patch;
+    } catch (e) {
+        log(`Failed to create a patch: ${getErrorMessage(e)}`);
+        throw e;
+    } finally {
+        await deleteTempFiles(tempFiles.oldFilePath, tempFiles.newFilePath, log);
+    }
 };
 
 /**
- * Scans `absolutePatchesPath` for files with the "*.patch" pattern and deletes
+ * Scans `absolutePatchesPath` for files with the `*.${PATCH_EXTENSION}` pattern and deletes
  * those whose created epoch timestamp has expired and whose are not empty.
  *
  * @param absolutePatchesPath Directory for scan.
  * @param deleteOlderThanSeconds The time to live for the patch in *seconds*.
+ *
+ * @see {@link PATCH_EXTENSION}
  *
  * @returns Returns number of deleted patches.
  */
@@ -367,13 +264,19 @@ export const isPatchValid = (
 
     const diffDirective = parseDiffDirective(patchLines[0]);
 
-    const updatedFile = applyRcsPatch(
-        splitByLines(oldFile),
-        diffDirective ? patchLines.slice(1) : patchLines,
-        diffDirective ? diffDirective.checksum : undefined,
-    );
+    try {
+        const updatedFile = applyRcsPatch(
+            splitByLines(oldFile),
+            diffDirective ? patchLines.slice(1) : patchLines,
+            diffDirective ? diffDirective.checksum : undefined,
+        );
 
-    return updatedFile === newFile;
+        return updatedFile === newFile;
+    } catch (e) {
+        log(`Failed to apply patch to the old file: ${getErrorMessage(e)}`);
+
+        return false;
+    }
 };
 
 /**
@@ -457,7 +360,7 @@ export const updateFileAndCreatePatch = async (
     );
 
     // Generate the diff patch.
-    let patch = createPatch(oldFile, newFileWithUpdatedTags);
+    let patch = await createPatch(oldFile, newFileWithUpdatedTags);
 
     // Optionally add a checksum to the patch.
     if (checksumFlag) {

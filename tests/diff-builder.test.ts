@@ -1,8 +1,6 @@
 import { calculateChecksumSHA1 } from '../src/common/calculate-checksum';
 import { createDiffDirective } from '../src/common/diff-directive';
-import { TypesOfChanges } from '../src/common/types-of-change';
 import {
-    detectTypeOfChanges,
     createPatch,
 } from '../src/diff-builder/build';
 import {
@@ -33,14 +31,6 @@ import {
 } from './stubs/filters-with-checksum';
 
 describe('check diff-builder', () => {
-    it('check detectTypeOfChanges', () => {
-        let res = detectTypeOfChanges('+a');
-        expect(res).toEqual(TypesOfChanges.Add);
-
-        res = detectTypeOfChanges('-b');
-        expect(res).toEqual(TypesOfChanges.Delete);
-    });
-
     it('check calculateChecksum', () => {
         const content = FILTER_1_V_1_0_1;
 
@@ -88,21 +78,21 @@ describe('check diff-builder', () => {
             [FILE_7, FILE_8, FILE_7_8_PATCH],
         ];
 
-        it.each(cases)('creates patch', (
+        it.each(cases)('creates patch', async (
             filter1,
             filter2,
             expectedPatch,
         ) => {
-            const patch = createPatch(filter1, filter2);
+            const patch = await createPatch(filter1, filter2);
 
-            expect(patch).toEqual(expectedPatch);
+            expect(patch).toStrictEqual(expectedPatch);
         });
 
-        it('creates patch with validation', () => {
+        it('creates patch with validation', async () => {
             const filter1 = FILTER_1_V_1_0_0;
             const filter2 = FILTER_1_V_1_0_1;
 
-            let patch = createPatch(filter1, filter2);
+            let patch = await createPatch(filter1, filter2);
 
             const oldFileDiffPath = parseTag('Diff-Path', splitByLines(filter1));
 
@@ -114,11 +104,11 @@ describe('check diff-builder', () => {
             expect(patch).toEqual(directive.concat('\n').concat(PATCH_1_1_0_0));
         });
 
-        it('creates patch with correct checksums changes', () => {
+        it('creates patch with correct checksums changes', async () => {
             const filter1 = FILTER_CHECKSUM_1_V_1_0_0;
             const filter2 = FILTER_CHECKSUM_1_V_1_0_1;
 
-            const patch = createPatch(filter1, filter2);
+            const patch = await createPatch(filter1, filter2);
             expect(patch).toEqual(PATCH_CHECKSUM_1_1_0_0);
 
             const oldFileDiffPath = parseTag('Diff-Path', splitByLines(filter1));

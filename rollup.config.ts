@@ -34,6 +34,8 @@ const cliConfig = defineConfig({
         'fs',
         'path',
         'commander',
+        'child_process',
+        'os',
     ],
     plugins: commonPlugins.concat([
         // Allow node_modules resolution, so you can use 'external' to control
@@ -66,6 +68,8 @@ const builderApiConfig = defineConfig({
         'fs',
         'path',
         'crypto',
+        'child_process',
+        'os',
     ],
     plugins: commonPlugins.concat([
         // Allow node_modules resolution, so you can use 'external' to control

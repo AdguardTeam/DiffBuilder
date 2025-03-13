@@ -40,6 +40,9 @@ Test:
             # Exclude '--ignore-platform' from yarn arguments to fix build
             originalValue="$bamboo_varsYarn"
 
+            # Test diff version
+            diff --version
+
             # Use sed to replace "--ignore-platform" with an empty string
             modifiedValue=$(echo "$originalValue" | sed 's/--ignore-platform//g')
 

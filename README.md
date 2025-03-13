@@ -2,15 +2,27 @@
 
 A tool for generating differential updates for filter lists.
 
-- [How to install](#how-to-install)
-- [How to use](#how-to-use)
-   - [Use as CLI](#cli)
-   - [Use as API](#api)
+## Contents
+
+- [Prerequisites](#prerequisites)
+- [How to Install](#how-to-install)
+- [How to Use](#how-to-use)
+   - [CLI](#cli)
+   - [API](#api)
 - [Algorithm](#algorithm)
 
-## How to install
+## Prerequisites
 
-`yarn add @adguard/diff-builder`
+- **diff utility**: This tool relies on the standard Unix `diff` utility to generate patches efficiently. Make sure it's installed on your system.
+  - On macOS: Available by default or through XCode CLI tools
+  - On Linux: Available by default or install via your package manager (e.g., `apt-get install diffutils`)
+  - On Windows: Available via WSL or Git Bash
+
+## How to Install
+
+```bash
+yarn add @adguard/diff-builder
+```
 
 ## How to Use
 
