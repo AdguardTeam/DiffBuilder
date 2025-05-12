@@ -7,21 +7,28 @@ A tool for generating differential updates for filter lists.
 - [Prerequisites](#prerequisites)
 - [How to Install](#how-to-install)
 - [How to Use](#how-to-use)
-   - [CLI](#cli)
-   - [API](#api)
-- [Algorithm](#algorithm)
+    - [CLI](#cli)
+    - [API](#api)
+- [Algorithm Overview](#algorithm-overview)
 
 ## Prerequisites
 
-- **diff utility**: This tool relies on the standard Unix `diff` utility to generate patches efficiently. Make sure it's installed on your system.
-  - On macOS: Available by default or through XCode CLI tools
-  - On Linux: Available by default or install via your package manager (e.g., `apt-get install diffutils`)
-  - On Windows: Available via WSL or Git Bash
+<!-- NOTE: Minimal supported Node.js version should be specified in package.json -->
+<!-- and the same one should be used for testing in .github/workflows/test.yaml -->
+- [Node.js] v18.13.0 or higher.
+
+- **diff utility** — this tool relies on the standard Unix `diff` utility to generate patches efficiently.
+  Make sure it's installed on your system:
+    - On macOS: Available by default or through XCode CLI tools.
+    - On Linux: Available by default or install via your package manager (e.g., `apt-get install diffutils`).
+    - On Windows: Available via WSL or Git Bash.
+
+[Node.js]: https://nodejs.org/en/download
 
 ## How to Install
 
 ```bash
-yarn add @adguard/diff-builder
+pnpm add @adguard/diff-builder
 ```
 
 ## How to Use
@@ -65,32 +72,38 @@ Where:
 ## Algorithm Overview
 
 ### 1. Setup
-   - Resolve absolute paths for the old and new filters and the patches directory.
+
+- Resolve absolute paths for the old and new filters and the patches directory.
 
 ### 2. Prepare Patch Directory
-   - Ensure the patches directory exists, creating it if necessary.
+
+- Ensure the patches directory exists, creating it if necessary.
 
 ### 3. Clean Up Old Patches
-   - Delete any outdated patches from the patches directory except empty patches.
+
+- Delete any outdated patches from the patches directory except empty patches.
 
 ### 4. Read Filters and Detect Changes
-   - Read and split the old and new filter files into lines.
-   - Check if there are significant changes between the two sets of lines, excluding 'Diff-Path' and 'Checksum' tags.
+
+- Read and split the old and new filter files into lines.
+- Check if there are significant changes between the two sets of lines, excluding 'Diff-Path' and 'Checksum' tags.
 
 ### 5. Handle No Changes
-   - If no significant changes are found, revert any changes in the new filter and exit.
+
+- If no significant changes are found, revert any changes in the new filter and exit.
 
 ### 6. Process Changes
-   - Generate a new patch name and validate its uniqueness.
-   - Update the 'Diff-Path' tag in the new filter.
-   - Create a diff patch between the old and new filters.
-   - Optionally, add a checksum to the patch.
+
+- Generate a new patch name and validate its uniqueness.
+- Update the 'Diff-Path' tag in the new filter.
+- Create a diff patch between the old and new filters.
+- Optionally, add a checksum to the patch.
 
 ### 7. Finalize
-   - Write the updated new filter back to its file.
-   - Create an empty patch file for future use if necessary.
-   - Save the diff patch to the appropriate file.
 
+- Write the updated new filter back to its file.
+- Create an empty patch file for future use if necessary.
+- Save the diff patch to the appropriate file.
 
 ## API
 

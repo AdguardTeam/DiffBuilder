@@ -5,7 +5,7 @@ plan:
   key: DIFFBUILDERTESTS
   name: diff builder - tests
 variables:
-  dockerNode: adguard/node-ssh:18.13--1
+  dockerNode: adguard/node-ssh:22.14--0
 
 stages:
   - Test:
@@ -21,7 +21,7 @@ Test:
   docker:
     image: ${bamboo.dockerNode}
     volumes:
-      ${system.YARN_DIR}: "${bamboo.cacheYarn}"
+      ${system.PNPM_DIR}: "${bamboo.cachePnpm}"
   tasks:
     - checkout:
         force-clean-build: true
@@ -37,18 +37,16 @@ Test:
 
             ls -laht
 
-            # Exclude '--ignore-platform' from yarn arguments to fix build
-            originalValue="$bamboo_varsYarn"
+            # Set cache directory
+            pnpm config set store-dir ${bamboo.cachePnpm}
 
             # Test diff version
             diff --version
 
-            # Use sed to replace "--ignore-platform" with an empty string
-            modifiedValue=$(echo "$originalValue" | sed 's/--ignore-platform//g')
+            pnpm install ${bamboo_varsPnpm}
 
-            yarn install ${modifiedVarsYarn}
-            yarn lint
-            yarn test
+            pnpm lint
+            pnpm test
   final-tasks:
     - script:
         interpreter: SHELL

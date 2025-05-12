@@ -1,6 +1,8 @@
+.vscode/
 node_modules/
 test-data/
 dist/
+.pnpm-store/
 .eslintcache
 .DS_Store
 build.txt

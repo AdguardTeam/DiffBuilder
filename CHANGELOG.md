@@ -11,8 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Switched from js 'diff' to system GNU utility 'diff' [#4].
 
-[#4]: https://github.com/AdguardTeam/DiffBuilder/issues/4
 [1.1.0]: https://github.com/AdguardTeam/DiffBuilder/compare/v1.0.18...v1.1.0
+[#4]: https://github.com/AdguardTeam/DiffBuilder/issues/4
 
 ## [1.0.18] - 2024-04-04
 
@@ -20,8 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Do not fail if the old version of the filter does not exist [#3].
 
-[#3]: https://github.com/AdguardTeam/DiffBuilder/issues/3
 [1.0.18]: https://github.com/AdguardTeam/DiffBuilder/compare/v1.0.17...v1.0.18
+[#3]: https://github.com/AdguardTeam/DiffBuilder/issues/3
 
 ## [1.0.17] - 2024-03-25
 
@@ -30,9 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Throwing of `UnacceptableResponseError` by `DiffUpdater.applyPatch()`
   if response status is unacceptable [AdguardBrowserExtension#2717].
 
-[AdguardBrowserExtension#2717]: https://github.com/AdguardTeam/AdguardBrowserExtension/issues/2717
 [1.0.17]: https://github.com/AdguardTeam/DiffBuilder/compare/v1.0.16...v1.0.17
-
+[AdguardBrowserExtension#2717]: https://github.com/AdguardTeam/AdguardBrowserExtension/issues/2717
 
 ## [1.0.16] - 2024-03-18
 
@@ -42,7 +41,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [1.0.16]: https://github.com/AdguardTeam/DiffBuilder/compare/v1.0.13...v1.0.16
 
-
 ## [1.0.13] - 2024-01-17
 
 ### Changed
@@ -51,7 +49,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [1.0.13]: https://github.com/AdguardTeam/DiffBuilder/compare/v1.0.12...v1.0.13
 
-
 ## [1.0.12] - 2024-01-17
 
 ### Changed
@@ -59,7 +56,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Throw error when response status for network request is invalid.
 
 [1.0.12]: https://github.com/AdguardTeam/DiffBuilder/compare/v1.0.11...v1.0.12
-
 
 ## [1.0.11] - 2024-01-16
 
@@ -77,7 +73,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [1.0.11]: https://github.com/AdguardTeam/DiffBuilder/compare/v1.0.10...v1.0.11
 
-
 ## [1.0.10] - 2024-01-11
 
 ### Fixed
@@ -87,7 +82,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [1.0.10]: https://github.com/AdguardTeam/DiffBuilder/compare/v1.0.9...v1.0.10
 
-
 ## [1.0.9] - 2024-01-08
 
 ### Fixed
@@ -95,7 +89,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Use last available version of `jsdiff` to fix error with large patches.
 
 [1.0.9]: https://github.com/AdguardTeam/DiffBuilder/compare/v1.0.8...v1.0.9
-
 
 ## [1.0.8] - 2023-12-29
 
@@ -105,7 +98,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [1.0.8]: https://github.com/AdguardTeam/DiffBuilder/compare/v1.0.7...v1.0.8
 
-
 ## [1.0.7] - 2023-12-29
 
 ### Fixed
@@ -113,7 +105,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Handle backslashes '\' for Windows file paths.
 
 [1.0.7]: https://github.com/AdguardTeam/DiffBuilder/compare/v1.0.6...v1.0.7
-
 
 ## [1.0.6] - 2023-12-26
 
@@ -123,7 +114,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [1.0.6]: https://github.com/AdguardTeam/DiffBuilder/compare/v1.0.5...v1.0.6
 
-
 ## [1.0.5] - 2023-12-25
 
 ### Fixed
@@ -131,7 +121,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bug with cutting filter content to first 50 lines.
 
 [1.0.5]: https://github.com/AdguardTeam/DiffBuilder/compare/v1.0.4...v1.0.5
-
 
 ## [1.0.4] - 2023-12-25
 
@@ -145,7 +134,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [1.0.4]: https://github.com/AdguardTeam/DiffBuilder/compare/v1.0.3...v1.0.4
 
-
 ## [1.0.3] - 2023-12-20
 
 ### Fixed
@@ -153,7 +141,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Recalculate only first found checksum.
 
 [1.0.3]: https://github.com/AdguardTeam/DiffBuilder/compare/v1.0.2...v1.0.3
-
 
 ## [1.0.2] - 2023-12-20
 

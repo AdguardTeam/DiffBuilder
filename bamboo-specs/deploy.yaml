@@ -9,13 +9,13 @@ environments:
 
 npmjs:
   docker:
-    image: adguard/node-ssh:18.13--1
+    image: adguard/node-ssh:22.14--0
     volumes:
-      ${system.YARN_DIR}: "${bamboo.cacheYarn}"
+      ${system.PNPM_DIR}: "${bamboo.cachePnpm}"
   triggers: [ ]
   tasks:
     - checkout:
-        force-clean-build: 'true'
+        force-clean-build: true
     - artifact-download:
         artifacts:
           - name: diff-builder.tgz

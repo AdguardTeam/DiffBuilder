@@ -5,7 +5,7 @@ plan:
   key: DIFFBUILDERBUILD
   name: diff builder - build
 variables:
-  dockerNode: adguard/node-ssh:18.13--1
+  dockerNode: adguard/node-ssh:22.14--0
 
 stages:
   - Build:
@@ -21,7 +21,7 @@ Build:
   docker:
     image: ${bamboo.dockerNode}
     volumes:
-      ${system.YARN_DIR}: "${bamboo.cacheYarn}"
+      ${system.PNPM_DIR}: "${bamboo.cachePnpm}"
   tasks:
     - checkout:
         force-clean-build: true
@@ -37,17 +37,17 @@ Build:
 
             ls -laht
 
-            # Exclude '--ignore-platform' from yarn arguments to fix build
-            originalValue="$bamboo_varsYarn"
+            # Set cache directory
+            pnpm config set store-dir ${bamboo.cachePnpm}
 
-            # Use sed to replace "--ignore-platform" with an empty string
-            modifiedValue=$(echo "$originalValue" | sed 's/--ignore-platform//g')
+            pnpm install ${bamboo_varsPnpm}
 
-            yarn install ${modifiedVarsYarn}
-            yarn lint
-            yarn test
-            yarn build
-            yarn pack --filename diff-builder.tgz
+            pnpm lint
+            pnpm test
+
+            pnpm build
+
+            pnpm pack --out diff-builder.tgz
     - inject-variables:
         file: build.txt
         scope: RESULT
@@ -86,7 +86,7 @@ triggers: []
 branches:
   create: manually
   delete: never
-  link-to-jira: 'true'
+  link-to-jira: true
 
 notifications:
   - events:
