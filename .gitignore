@@ -6,3 +6,6 @@ dist/
 .eslintcache
 .DS_Store
 build.txt
+
+.npmrc
+*.tgz
