@@ -53,7 +53,9 @@ interface RcsOperation {
 }
 
 /**
- *
+ * Contains filter with updated or original content and a promise that resolves
+ * if next patch is available, containing the next patch task and the updated
+ * filter content.
  */
 type AppliedPatchResult = {
     /**
