@@ -53,6 +53,30 @@ interface RcsOperation {
 }
 
 /**
+ *
+ */
+type AppliedPatchResult = {
+    /**
+     * The updated filter content after applying the patch, or just the original
+     * filter content if the patch was not applied.
+     */
+    filterContent: string;
+
+    /**
+     * A promise that resolves via applied patch.
+     * If the patch is not available, it resolves to null.
+     */
+    nextPatchTask?: Promise<AppliedPatchResult | null>;
+};
+
+type ApplyPatchParamsWithRecursiveFlag = ApplyPatchParams & {
+    /**
+     * Indicates whether the patch is being applied recursively.
+     */
+    isRecursiveUpdate: boolean,
+};
+
+/**
  * If the differential update is not available the server may signal about that
  * by returning one of the following responses.
  *
@@ -331,16 +355,15 @@ export const extractBaseUrl = (filterUrl: string): string => {
  * 2. The {@link UnacceptableResponseError} if the network request returns an unacceptable status code.
  */
 export const applyPatch = async (params: ApplyPatchParams): Promise<string | null> => {
-    const tasks: Promise<string | null>[] = [];
-
-    // Wrapper to hide the callStack parameter from the user.
-    // eslint-disable-next-line max-len
-    const applyPatchWrapper = async (innerParams: ApplyPatchParams & { callStack: number, tasks: Promise<string | null>[] }): Promise<string | null> => {
+    // Wrapper to hide the `isRecursiveUpdate` parameter from the user.
+    const applyPatchWrapper = async (
+        innerParams: ApplyPatchParamsWithRecursiveFlag,
+    ): Promise<AppliedPatchResult | null> => {
         const {
             filterUrl,
             filterContent,
             verbose = false,
-            callStack,
+            isRecursiveUpdate,
         } = innerParams;
 
         const filterLines = splitByLines(filterContent);
@@ -354,7 +377,7 @@ export const applyPatch = async (params: ApplyPatchParams): Promise<string | nul
 
         // If the patch has not expired yet, return the filter content without changes.
         if (!checkPatchExpired(diffPath)) {
-            return filterContent;
+            return { filterContent };
         }
 
         const log = createLogger(verbose);
@@ -366,13 +389,13 @@ export const applyPatch = async (params: ApplyPatchParams): Promise<string | nul
                 baseUrl,
                 diffPath,
                 baseUrl.startsWith('http://') || baseUrl.startsWith('https://'),
-                callStack > 0,
+                isRecursiveUpdate,
                 log,
             );
 
             // Update is not available yet.
             if (res === null) {
-                return filterContent;
+                return { filterContent };
             }
 
             patch = res;
@@ -400,55 +423,49 @@ export const applyPatch = async (params: ApplyPatchParams): Promise<string | nul
         }
 
         try {
-            const promise = applyPatchWrapper({
+            const nextPatchTask = applyPatchWrapper({
                 filterUrl,
                 filterContent: updatedFilter,
-                callStack: callStack + 1,
+                isRecursiveUpdate: true,
                 verbose,
-                tasks,
             });
 
-            tasks.push(promise);
-
-            return updatedFilter;
+            return { filterContent: updatedFilter, nextPatchTask };
         } catch (e) {
             // If we catch an error during the recursive update, we will return
             // the last successfully applied patch.
-            return updatedFilter;
+            return { filterContent: updatedFilter };
         }
     };
 
-    tasks.push(applyPatchWrapper(Object.assign(params, { callStack: 0, tasks })));
+    const paramsWithRecursiveFlag = { ...params, isRecursiveUpdate: false };
 
-    let task;
+    let task: Promise<AppliedPatchResult | null> | null = applyPatchWrapper(paramsWithRecursiveFlag);
     let latestFilter: string | null = null;
 
     // Apply patches until there are no more tasks to process.
     // This allows to apply multiple patches in a row if the filter supports it
     // without recursive calls, since applying patches can be a memory-intensive
     // operation, because of large amount of contexts for each function call.
-    do {
-        task = tasks.shift();
+    while (task) {
+        let freshFilter: AppliedPatchResult | null = null;
 
-        let freshFilter = null;
-
-        try {
-            // eslint-disable-next-line no-await-in-loop
-            freshFilter = await task;
-        } catch (e) {
-            // If we catch an error during the patch application, we will return
-            // the last successfully applied patch.
-            return latestFilter;
-        }
+        // Without try-await since we should throw an error in some cases and
+        // all needed catches is inside the `applyPatchWrapper` function.
+        // eslint-disable-next-line no-await-in-loop
+        freshFilter = await task;
 
         // If there is no fresh filter, it means that the patch was not applied
         // or the filter does not support Diff-Path tag anymore.
         if (!freshFilter) {
+            // If there is no result, it means that the patch was not applied
+            // or the filter does not support Diff-Path tag anymore.
             return latestFilter;
         }
 
-        latestFilter = freshFilter;
-    } while (task);
+        latestFilter = freshFilter.filterContent;
+        task = freshFilter.nextPatchTask || null;
+    }
 
     return latestFilter;
 };
