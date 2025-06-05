@@ -457,7 +457,7 @@ export const applyPatch = async (params: ApplyPatchParams): Promise<string | nul
         let freshFilter: AppliedPatchResult | null = null;
 
         // Without try-await since we should throw an error in some cases and
-        // all needed catches is inside the `applyPatchWrapper` function.
+        // all needed catches are inside the `applyPatchWrapper` function.
         // eslint-disable-next-line no-await-in-loop
         freshFilter = await task;
 
