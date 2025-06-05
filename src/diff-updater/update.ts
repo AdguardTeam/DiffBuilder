@@ -218,7 +218,8 @@ const checkPatchExpired = (diffPath: string): boolean => {
  * If `isFileHostedViaNetworkProtocol` is `false`, only 2xx status codes are
  * accepted, indicating a successful local or similar file request.
  * Any other status codes result in an error.
- * @param isRecursiveUpdate Indicates whether the function is called recursively.
+ * @param isRecursiveUpdate Indicates whether the it is an applying multiple
+ * patches in a row.
  * @param log A function that logs a message.
  *
  * @returns A promise that resolves to the content of the downloaded file
@@ -259,8 +260,10 @@ const downloadFile = async (
         }
 
         if ((response.status === AcceptableHttpStatusCodes.NotFound
-            || response.status === AcceptableHttpStatusCodes.NoContent) && !isRecursiveUpdate) {
-            log('Update is not available.');
+            || response.status === AcceptableHttpStatusCodes.NoContent)) {
+            if (!isRecursiveUpdate) {
+                log('Update is not available.');
+            }
             return null;
         }
 
@@ -328,8 +331,11 @@ export const extractBaseUrl = (filterUrl: string): string => {
  * 2. The {@link UnacceptableResponseError} if the network request returns an unacceptable status code.
  */
 export const applyPatch = async (params: ApplyPatchParams): Promise<string | null> => {
+    const tasks: Promise<string | null>[] = [];
+
     // Wrapper to hide the callStack parameter from the user.
-    const applyPatchWrapper = async (innerParams: ApplyPatchParams & { callStack: number }): Promise<string | null> => {
+    // eslint-disable-next-line max-len
+    const applyPatchWrapper = async (innerParams: ApplyPatchParams & { callStack: number, tasks: Promise<string | null>[] }): Promise<string | null> => {
         const {
             filterUrl,
             filterContent,
@@ -394,20 +400,17 @@ export const applyPatch = async (params: ApplyPatchParams): Promise<string | nul
         }
 
         try {
-            const recursiveUpdatedFilter = await applyPatchWrapper({
+            const promise = applyPatchWrapper({
                 filterUrl,
                 filterContent: updatedFilter,
                 callStack: callStack + 1,
                 verbose,
+                tasks,
             });
 
-            // It can be null if the filter dropped support for Diff-Path in new versions.
-            if (recursiveUpdatedFilter === null) {
-                // Then we return the filter with the last successfully applied patch.
-                return updatedFilter;
-            }
+            tasks.push(promise);
 
-            return recursiveUpdatedFilter;
+            return updatedFilter;
         } catch (e) {
             // If we catch an error during the recursive update, we will return
             // the last successfully applied patch.
@@ -415,5 +418,37 @@ export const applyPatch = async (params: ApplyPatchParams): Promise<string | nul
         }
     };
 
-    return applyPatchWrapper(Object.assign(params, { callStack: 0 }));
+    tasks.push(applyPatchWrapper(Object.assign(params, { callStack: 0, tasks })));
+
+    let task;
+    let latestFilter: string | null = null;
+
+    // Apply patches until there are no more tasks to process.
+    // This allows to apply multiple patches in a row if the filter supports it
+    // without recursive calls, since applying patches can be a memory-intensive
+    // operation, because of large amount of contexts for each function call.
+    do {
+        task = tasks.shift();
+
+        let freshFilter = null;
+
+        try {
+            // eslint-disable-next-line no-await-in-loop
+            freshFilter = await task;
+        } catch (e) {
+            // If we catch an error during the patch application, we will return
+            // the last successfully applied patch.
+            return latestFilter;
+        }
+
+        // If there is no fresh filter, it means that the patch was not applied
+        // or the filter does not support Diff-Path tag anymore.
+        if (!freshFilter) {
+            return latestFilter;
+        }
+
+        latestFilter = freshFilter;
+    } while (task);
+
+    return latestFilter;
 };
