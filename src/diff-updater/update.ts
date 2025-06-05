@@ -71,6 +71,10 @@ type AppliedPatchResult = {
     nextPatchTask?: Promise<AppliedPatchResult | null>;
 };
 
+/**
+ * Extends the ApplyPatchParams interface to include a flag indicating whether
+ * the patch is being applied recursively to hide it from the user.
+ */
 type ApplyPatchParamsWithRecursiveFlag = ApplyPatchParams & {
     /**
      * Indicates whether the patch is being applied recursively.
