@@ -50,7 +50,8 @@
         "watch": "rollup -c rollup.config.ts --configPlugin typescript -w",
         "build:types": "tsc --project tsconfig.build.json --declaration --emitDeclarationOnly --outdir dist/types",
         "lint": "eslint --cache . && tsc --noEmit",
-        "test": "jest"
+        "test": "jest",
+        "tgz": "pnpm pack --out diff-builder.tgz"
     },
     "dependencies": {
         "commander": "^11.1.0",
