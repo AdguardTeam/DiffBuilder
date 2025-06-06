@@ -290,7 +290,8 @@ const downloadFile = async (
         }
 
         if ((response.status === AcceptableHttpStatusCodes.NotFound
-            || response.status === AcceptableHttpStatusCodes.NoContent)) {
+            || response.status === AcceptableHttpStatusCodes.NoContent)
+        ) {
             if (!isRecursiveUpdate) {
                 log('Update is not available.');
             }
@@ -352,12 +353,13 @@ export const extractBaseUrl = (filterUrl: string): string => {
  * @param params The parameters for applying the patch {@link ApplyPatchParams}.
  *
  * @returns A promise that resolves to the updated filter content after applying the patch,
- * or null if there is no Diff-Path tag in the filter.
+ * or null only if there is no Diff-Path tag in the filter - this is a special
+ * case to prevent future unnecessary patch requests.
  *
  * @throws
  * 1. An {@link Error} if there is an error during
  *     - the patch application process
- *     - during network request.
+ *     - or during the network request.
  * 2. The {@link UnacceptableResponseError} if the network request returns an unacceptable status code.
  */
 export const applyPatch = async (params: ApplyPatchParams): Promise<string | null> => {
@@ -446,31 +448,30 @@ export const applyPatch = async (params: ApplyPatchParams): Promise<string | nul
 
     const paramsWithRecursiveFlag = { ...params, isRecursiveUpdate: false };
 
-    let task: Promise<AppliedPatchResult | null> | null = applyPatchWrapper(paramsWithRecursiveFlag);
+    let applyingPatchTask: Promise<AppliedPatchResult | null> | null = applyPatchWrapper(paramsWithRecursiveFlag);
     let latestFilter: string | null = null;
 
-    // Apply patches until there are no more tasks to process.
+    // Apply patches until there are no more new patches to apply.
     // This allows to apply multiple patches in a row if the filter supports it
     // without recursive calls, since applying patches can be a memory-intensive
     // operation, because of large amount of contexts for each function call.
-    while (task) {
+    while (applyingPatchTask) {
         let freshFilter: AppliedPatchResult | null = null;
 
         // Without try-await since we should throw an error in some cases and
         // all needed catches are inside the `applyPatchWrapper` function.
         // eslint-disable-next-line no-await-in-loop
-        freshFilter = await task;
+        freshFilter = await applyingPatchTask;
 
         // If there is no fresh filter, it means that the patch was not applied
-        // or the filter does not support Diff-Path tag anymore.
+        // or the filter does not support Diff-Path tag anymore, so we return
+        // the latest filter content.
         if (!freshFilter) {
-            // If there is no result, it means that the patch was not applied
-            // or the filter does not support Diff-Path tag anymore.
             return latestFilter;
         }
 
         latestFilter = freshFilter.filterContent;
-        task = freshFilter.nextPatchTask || null;
+        applyingPatchTask = freshFilter.nextPatchTask || null;
     }
 
     return latestFilter;

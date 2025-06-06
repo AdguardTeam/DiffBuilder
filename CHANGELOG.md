@@ -10,10 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Instead of recursively applying patches, now it will apply them one by one
-  in chain to reduce memory usage [extension#5].
+  in chain to reduce memory usage [AdguardBrowserExtension#3230].
 
 [1.1.1]: https://github.com/AdguardTeam/DiffBuilder/compare/v1.1.0...v1.1.1
-[extension#5]: https://github.com/AdguardTeam/AdguardBrowserExtension/issues/3230
+[AdguardBrowserExtension#3230]: https://github.com/AdguardTeam/AdguardBrowserExtension/issues/3230
 
 ## [1.1.0] - 2025-03-13
 
