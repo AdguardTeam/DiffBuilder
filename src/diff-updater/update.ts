@@ -53,6 +53,36 @@ interface RcsOperation {
 }
 
 /**
+ * Contains filter with updated or original content and a promise that resolves
+ * if next patch is available, containing the next patch task and the updated
+ * filter content.
+ */
+type AppliedPatchResult = {
+    /**
+     * The updated filter content after applying the patch, or just the original
+     * filter content if the patch was not applied.
+     */
+    filterContent: string;
+
+    /**
+     * A promise that resolves via applied patch.
+     * If the patch is not available, it resolves to null.
+     */
+    nextPatchTask?: Promise<AppliedPatchResult | null>;
+};
+
+/**
+ * Extends the ApplyPatchParams interface to include a flag indicating whether
+ * the patch is being applied recursively to hide it from the user.
+ */
+type ApplyPatchParamsWithRecursiveFlag = ApplyPatchParams & {
+    /**
+     * Indicates whether the patch is being applied recursively.
+     */
+    isRecursiveUpdate: boolean,
+};
+
+/**
  * If the differential update is not available the server may signal about that
  * by returning one of the following responses.
  *
@@ -218,7 +248,8 @@ const checkPatchExpired = (diffPath: string): boolean => {
  * If `isFileHostedViaNetworkProtocol` is `false`, only 2xx status codes are
  * accepted, indicating a successful local or similar file request.
  * Any other status codes result in an error.
- * @param isRecursiveUpdate Indicates whether the function is called recursively.
+ * @param isRecursiveUpdate Indicates whether the it is an applying multiple
+ * patches in a row.
  * @param log A function that logs a message.
  *
  * @returns A promise that resolves to the content of the downloaded file
@@ -258,9 +289,12 @@ const downloadFile = async (
             }
         }
 
-        if ((response.status === AcceptableHttpStatusCodes.NotFound
-            || response.status === AcceptableHttpStatusCodes.NoContent) && !isRecursiveUpdate) {
-            log('Update is not available.');
+        if (response.status === AcceptableHttpStatusCodes.NotFound
+            || response.status === AcceptableHttpStatusCodes.NoContent
+        ) {
+            if (!isRecursiveUpdate) {
+                log('Update is not available.');
+            }
             return null;
         }
 
@@ -319,22 +353,25 @@ export const extractBaseUrl = (filterUrl: string): string => {
  * @param params The parameters for applying the patch {@link ApplyPatchParams}.
  *
  * @returns A promise that resolves to the updated filter content after applying the patch,
- * or null if there is no Diff-Path tag in the filter.
+ * or null only if there is no Diff-Path tag in the filter - this is a special
+ * case to prevent future unnecessary patch requests.
  *
  * @throws
  * 1. An {@link Error} if there is an error during
  *     - the patch application process
- *     - during network request.
+ *     - or during the network request.
  * 2. The {@link UnacceptableResponseError} if the network request returns an unacceptable status code.
  */
 export const applyPatch = async (params: ApplyPatchParams): Promise<string | null> => {
-    // Wrapper to hide the callStack parameter from the user.
-    const applyPatchWrapper = async (innerParams: ApplyPatchParams & { callStack: number }): Promise<string | null> => {
+    // Wrapper to hide the `isRecursiveUpdate` parameter from the user.
+    const applyPatchWrapper = async (
+        innerParams: ApplyPatchParamsWithRecursiveFlag,
+    ): Promise<AppliedPatchResult | null> => {
         const {
             filterUrl,
             filterContent,
             verbose = false,
-            callStack,
+            isRecursiveUpdate,
         } = innerParams;
 
         const filterLines = splitByLines(filterContent);
@@ -348,7 +385,7 @@ export const applyPatch = async (params: ApplyPatchParams): Promise<string | nul
 
         // If the patch has not expired yet, return the filter content without changes.
         if (!checkPatchExpired(diffPath)) {
-            return filterContent;
+            return { filterContent };
         }
 
         const log = createLogger(verbose);
@@ -360,13 +397,13 @@ export const applyPatch = async (params: ApplyPatchParams): Promise<string | nul
                 baseUrl,
                 diffPath,
                 baseUrl.startsWith('http://') || baseUrl.startsWith('https://'),
-                callStack > 0,
+                isRecursiveUpdate,
                 log,
             );
 
             // Update is not available yet.
             if (res === null) {
-                return filterContent;
+                return { filterContent };
             }
 
             patch = res;
@@ -394,26 +431,48 @@ export const applyPatch = async (params: ApplyPatchParams): Promise<string | nul
         }
 
         try {
-            const recursiveUpdatedFilter = await applyPatchWrapper({
+            const nextPatchTask = applyPatchWrapper({
                 filterUrl,
                 filterContent: updatedFilter,
-                callStack: callStack + 1,
+                isRecursiveUpdate: true,
                 verbose,
             });
 
-            // It can be null if the filter dropped support for Diff-Path in new versions.
-            if (recursiveUpdatedFilter === null) {
-                // Then we return the filter with the last successfully applied patch.
-                return updatedFilter;
-            }
-
-            return recursiveUpdatedFilter;
+            return { filterContent: updatedFilter, nextPatchTask };
         } catch (e) {
             // If we catch an error during the recursive update, we will return
             // the last successfully applied patch.
-            return updatedFilter;
+            return { filterContent: updatedFilter };
         }
     };
 
-    return applyPatchWrapper(Object.assign(params, { callStack: 0 }));
+    const paramsWithRecursiveFlag = { ...params, isRecursiveUpdate: false };
+
+    let applyingPatchTask: Promise<AppliedPatchResult | null> | null = applyPatchWrapper(paramsWithRecursiveFlag);
+    let latestFilter: string | null = null;
+
+    // Apply patches until there are no more new patches to apply.
+    // This allows to apply multiple patches in a row if the filter supports it
+    // without recursive calls, since applying patches can be a memory-intensive
+    // operation, because of large amount of contexts for each function call.
+    while (applyingPatchTask) {
+        let freshFilter: AppliedPatchResult | null = null;
+
+        // Without try-await since we should throw an error in some cases and
+        // all needed catches are inside the `applyPatchWrapper` function.
+        // eslint-disable-next-line no-await-in-loop
+        freshFilter = await applyingPatchTask;
+
+        // If there is no fresh filter, it means that the patch was not applied
+        // or the filter does not support Diff-Path tag anymore, so we return
+        // the latest filter content.
+        if (!freshFilter) {
+            return latestFilter;
+        }
+
+        latestFilter = freshFilter.filterContent;
+        applyingPatchTask = freshFilter.nextPatchTask || null;
+    }
+
+    return latestFilter;
 };
