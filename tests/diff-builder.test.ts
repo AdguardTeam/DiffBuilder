@@ -16,6 +16,9 @@ import {
     FILE_7,
     FILE_7_8_PATCH,
     FILE_8,
+    FILE_WITH_EXTENDED_SYMBOLS_OLD,
+    FILE_WITH_EXTENDED_SYMBOLS_NEW,
+    FILE_WITH_EXTENDED_SYMBOLS_PATCH,
 } from './stubs/random-files';
 import { FILTER_1_V_1_0_0, FILTER_1_V_1_0_1, PATCH_1_1_0_0 } from './stubs/simple';
 import { FILTER_2_V_1_0_0, FILTER_2_V_1_0_1, PATCH_2_1_0_0 } from './stubs/validation';
@@ -76,6 +79,7 @@ describe('check diff-builder', () => {
             [FILE_3, FILE_4, FILE_3_4_PATCH],
             [FILE_5, FILE_6, FILE_5_6_PATCH],
             [FILE_7, FILE_8, FILE_7_8_PATCH],
+            [FILE_WITH_EXTENDED_SYMBOLS_OLD, FILE_WITH_EXTENDED_SYMBOLS_NEW, FILE_WITH_EXTENDED_SYMBOLS_PATCH],
         ];
 
         it.each(cases)('creates patch', async (

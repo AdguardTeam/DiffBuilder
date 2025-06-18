@@ -14,6 +14,10 @@ export const spawnDiff = (oldFilePath: string, newFilePath: string): Promise<str
         // '-n' option is used to build a patch in RCS format
         const diffProcess = spawn('diff', ['-n', oldFilePath, newFilePath]);
 
+        // Set encoding for stdout and stderr to 'utf-8'
+        diffProcess.stdout.setEncoding('utf-8');
+        diffProcess.stderr.setEncoding('utf-8');
+
         let output = '';
         let errorOutput = '';
 
