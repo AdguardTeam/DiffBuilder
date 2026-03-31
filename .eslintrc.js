@@ -17,7 +17,11 @@ module.exports = {
         'airbnb-typescript/base',
         'plugin:jsdoc/recommended',
     ],
-    ignorePatterns: ['dist', 'coverage'],
+    ignorePatterns: [
+        'dist',
+        'coverage',
+        'tests/smoke',
+    ],
     rules: {
         indent: 'off',
         'arrow-body-style': 'off',

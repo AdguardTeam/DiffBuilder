@@ -1,6 +1,6 @@
 {
     "name": "@adguard/diff-builder",
-    "version": "1.1.2",
+    "version": "1.1.3",
     "description": "A tool for generating differential updates for filter lists.",
     "repository": {
         "type": "git",
@@ -19,10 +19,22 @@
         "src"
     ],
     "exports": {
-        ".": "./dist/api/builder/cjs/index.js",
-        "./es": "./dist/api/builder/es/index.js",
-        "./diff-updater": "./dist/api/updater/cjs/index.js",
-        "./diff-updater/es": "./dist/api/updater/es/index.js"
+        ".": {
+            "types": "./dist/types/diff-builder/index.d.ts",
+            "default": "./dist/api/builder/cjs/index.js"
+        },
+        "./es": {
+            "types": "./dist/types/diff-builder/index.d.ts",
+            "default": "./dist/api/builder/es/index.js"
+        },
+        "./diff-updater": {
+            "types": "./dist/types/diff-updater/index.d.ts",
+            "default": "./dist/api/updater/cjs/index.js"
+        },
+        "./diff-updater/es": {
+            "types": "./dist/types/diff-updater/index.d.ts",
+            "default": "./dist/api/updater/es/index.js"
+        }
     },
     "typesVersions": {
         "*": {
@@ -54,6 +66,7 @@
         "lint:types": "tsc --noEmit",
         "lint:md": "markdownlint .",
         "test": "jest",
+        "test:smoke": "(cd tests/smoke/cjs && pnpm test) && (cd tests/smoke/esm && pnpm test) && (cd tests/smoke/typescript && pnpm test)",
         "tgz": "pnpm pack --out diff-builder.tgz"
     },
     "dependencies": {

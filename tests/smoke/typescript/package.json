@@ -1,0 +1,14 @@
+{
+    "name": "typescript-smoke-test",
+    "version": "1.0.0",
+    "license": "MIT",
+    "type": "module",
+    "scripts": {
+        "start": "tsc --noEmit && tsd",
+        "test": "./test.sh"
+    },
+    "devDependencies": {
+        "tsd": "^0.31.0",
+        "typescript": "^5.2.2"
+    }
+}

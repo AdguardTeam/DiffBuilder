@@ -5,9 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.3] - 2026-03-31
+
+### Fixed
+
+- TypeScript type resolution for subpath exports when consumers use
+  `moduleResolution: bundler | node16 | nodenext`.
+  Added `"types"` condition to all `exports` map entries in `package.json`.
+
+[1.1.3]: https://github.com/AdguardTeam/DiffBuilder/compare/v1.1.2...v1.1.3
+
 ## [1.1.2] - 2025-06-18
 
-## Fixed
+### Fixed
 
 - Incorrect coding when preparing a patch [FiltersRegistry#1091].
 
@@ -86,7 +96,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Validating for generated patch.
 
-## Changed
+### Changed
 
 - Write generated patch to folder with new filter.
 
