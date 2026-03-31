@@ -47,6 +47,7 @@ Test:
 
             pnpm lint
             pnpm test
+            pnpm test:smoke
   final-tasks:
     - script:
         interpreter: SHELL

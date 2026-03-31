@@ -8,9 +8,6 @@ importers:
 
   .:
     devDependencies:
-      '@adguard/diff-builder':
-        specifier: file:../../..
-        version: file:../../..
       tsd:
         specifier: ^0.31.0
         version: 0.31.2
@@ -19,11 +16,6 @@ importers:
         version: 5.9.3
 
 packages:
-
-  '@adguard/diff-builder@file:../../..':
-    resolution: {directory: ../../.., type: directory}
-    engines: {node: '>=20'}
-    hasBin: true
 
   '@babel/code-frame@7.29.0':
     resolution: {integrity: sha512-9NhCeYjq9+3uxgdtp20LSiJXJvN0FeCtNGpJxuMFZ1Kv3cWUNb6DOhJwUvcVCzKGR66cw4njwM6hrJLqgOwbcw==}
@@ -117,13 +109,6 @@ packages:
 
   color-name@1.1.4:
     resolution: {integrity: sha512-dOy+3AuW3a2wNbZHIuMZpTcgjGuLU/uBL/ubcZF9OXbDo8ff4O8yVp5Bf0efS8uEoYo5q4Fx7dY9OgQGXgAsQA==}
-
-  commander@11.1.0:
-    resolution: {integrity: sha512-yPVavfyCcRhmorC7rWlkHn15b4wDVgVmBA7kV4QVBsF7kv/9TKJAbAXVTxvTnwP8HHKjRCJDClKbciiYS7p0DQ==}
-    engines: {node: '>=16'}
-
-  crypto-js@4.2.0:
-    resolution: {integrity: sha512-KALDyEYgpY+Rlob/iriUtjV6d5Eq+Y191A5g4UqLAi8CyGP9N1+FdVbkc1SxKc2r4YAYqG8JzO2KGL+AizD70Q==}
 
   decamelize-keys@1.1.1:
     resolution: {integrity: sha512-WiPxgEirIV0/eIOMcnFBA3/IJZAZqKnwAwWyvvdi4lsr1WCN22nhdf/3db3DoZcUjTV2SqfzIwNyp6y2xs3nmg==}
@@ -481,11 +466,6 @@ packages:
 
 snapshots:
 
-  '@adguard/diff-builder@file:../../..':
-    dependencies:
-      commander: 11.1.0
-      crypto-js: 4.2.0
-
   '@babel/code-frame@7.29.0':
     dependencies:
       '@babel/helper-validator-identifier': 7.28.5
@@ -565,10 +545,6 @@ snapshots:
       color-name: 1.1.4
 
   color-name@1.1.4: {}
-
-  commander@11.1.0: {}
-
-  crypto-js@4.2.0: {}
 
   decamelize-keys@1.1.1:
     dependencies:

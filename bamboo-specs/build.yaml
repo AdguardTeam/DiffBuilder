@@ -44,6 +44,7 @@ Build:
 
             pnpm lint
             pnpm test
+            pnpm test:smoke
 
             pnpm build
 

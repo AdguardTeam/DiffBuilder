@@ -14,7 +14,7 @@ cleanup() {
 
 trap cleanup EXIT
 
-(cd ../../.. && pnpm pack --out "$curr_path/$pkg")
+(cd ../../.. && pnpm build && pnpm pack --out "$curr_path/$pkg")
 
 pnpm install
 
