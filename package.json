@@ -67,6 +67,7 @@
         "lint:md": "markdownlint .",
         "test": "jest",
         "test:smoke": "(cd tests/smoke/cjs && pnpm test) && (cd tests/smoke/esm && pnpm test) && (cd tests/smoke/typescript && pnpm test)",
+        "increment": "pnpm version patch --no-git-tag-version",
         "tgz": "pnpm pack --out diff-builder.tgz"
     },
     "dependencies": {

@@ -8,4 +8,7 @@
 !include 'deploy.yaml'
 
 ---
+!include 'increment.yaml'
+
+---
 !include 'permissions.yaml'
