@@ -16,7 +16,8 @@ trap cleanup EXIT
 
 (cd ../../.. && pnpm build && pnpm pack --out "$curr_path/$pkg")
 
-pnpm install
+# Keep this smoke package isolated from the root pnpm workspace config.
+pnpm install --ignore-workspace
 
 # Extract the packed tarball over the installed node_modules
 pkg_node_modules="$nm_path/@adguard/diff-builder"
