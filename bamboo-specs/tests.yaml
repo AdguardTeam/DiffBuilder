@@ -4,24 +4,20 @@ plan:
   project-key: AJL
   key: DIFFBUILDERTESTS
   name: diff builder - tests
-variables:
-  dockerNode: adguard/node-ssh:22.22--0
 
 stages:
-  - Test:
+  - Tests:
       manual: false
       final: false
       jobs:
+        - Lint
         - Test
+        - Test smoke
 
-Test:
-  key: TEST
+Lint:
+  key: LINT
   other:
     clean-working-dir: true
-  docker:
-    image: ${bamboo.dockerNode}
-    volumes:
-      ${system.PNPM_DIR}: "${bamboo.cachePnpm}"
   tasks:
     - checkout:
         force-clean-build: true
@@ -29,32 +25,85 @@ Test:
         interpreter: SHELL
         scripts:
           - |-
-            set -x
-            set -e
+            set -ex
 
             # Fix mixed logs
             exec 2>&1
 
-            ls -laht
+            export DOCKER_BUILDKIT=1
 
-            # Set cache directory
-            pnpm config set store-dir ${bamboo.cachePnpm}
-
-            # Test diff version
-            diff --version
-
-            pnpm install ${bamboo_varsPnpm}
-
-            pnpm lint
-            pnpm test
-            pnpm test:smoke
+            docker build \
+              --file Dockerfile \
+              --progress plain \
+              --build-arg BUILD_RUN_ID=${bamboo.buildNumber} \
+              --target lint-output \
+              --output type=local,dest=output \
+              .
   final-tasks:
-    - script:
+    - script: &cleanup-script
         interpreter: SHELL
         scripts:
           - "./bamboo-specs/scripts/cleanup.sh"
-  requirements:
-    - adg-docker: true
+  requirements: &requirements
+    - extension: 'true'
+
+Test:
+  key: TEST
+  other:
+    clean-working-dir: true
+  tasks:
+    - checkout:
+        force-clean-build: true
+    - script:
+        interpreter: SHELL
+        scripts:
+          - |-
+            set -ex
+
+            # Fix mixed logs
+            exec 2>&1
+
+            export DOCKER_BUILDKIT=1
+
+            docker build \
+              --file Dockerfile \
+              --progress plain \
+              --build-arg BUILD_RUN_ID=${bamboo.buildNumber} \
+              --target test-output \
+              --output type=local,dest=output \
+              .
+  final-tasks:
+    - script: *cleanup-script
+  requirements: *requirements
+
+Test smoke:
+  key: TESTSMOKE
+  other:
+    clean-working-dir: true
+  tasks:
+    - checkout:
+        force-clean-build: true
+    - script:
+        interpreter: SHELL
+        scripts:
+          - |-
+            set -ex
+
+            # Fix mixed logs
+            exec 2>&1
+
+            export DOCKER_BUILDKIT=1
+
+            docker build \
+              --file Dockerfile \
+              --progress plain \
+              --build-arg BUILD_RUN_ID=${bamboo.buildNumber} \
+              --target test-smoke-output \
+              --output type=local,dest=output \
+              .
+  final-tasks:
+    - script: *cleanup-script
+  requirements: *requirements
 
 branches:
   create: for-pull-request

@@ -2,6 +2,7 @@
 node_modules/
 test-data/
 dist/
+output/
 .pnpm-store/
 .eslintcache
 .DS_Store
