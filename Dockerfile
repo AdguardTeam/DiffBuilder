@@ -104,8 +104,7 @@ RUN --mount=type=cache,target=/pnpm-store,id=diff-builder-pnpm \
     pnpm build && \
     pnpm pack --out diff-builder.tgz && \
     mkdir -p /out/artifacts && \
-    cp diff-builder.tgz /out/artifacts/ && \
-    cp build.txt /out/artifacts/
+    cp diff-builder.tgz /out/artifacts/
 
 FROM scratch AS build-output
 COPY --from=full-build /out/artifacts/ /
