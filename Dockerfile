@@ -36,25 +36,8 @@ FROM deps AS source
 COPY . /diff-builder
 
 # ============================================================================
-# Stage: lint
-# Runs all linting (eslint + tsc + markdownlint)
-# ============================================================================
-FROM source AS lint
-
-ARG BUILD_RUN_ID=""
-
-RUN --mount=type=cache,target=/pnpm-store,id=diff-builder-pnpm \
-    echo "${BUILD_RUN_ID}" > /tmp/.build-run-id && \
-    pnpm lint && \
-    mkdir -p /out && \
-    touch /out/lint.txt
-
-FROM scratch AS lint-output
-COPY --from=lint /out/ /
-
-# ============================================================================
 # Stage: test
-# Runs Jest unit tests
+# Runs ESLint and Jest unit tests
 # ============================================================================
 FROM source AS test
 
@@ -71,28 +54,11 @@ FROM scratch AS test-output
 COPY --from=test /out/ /
 
 # ============================================================================
-# Stage: test-smoke
-# Runs smoke tests (builds the package internally, then tests CJS/ESM/TypeScript)
+# Stage: build
+# Runs quality gates (lint + tests + smoke), builds the library, and creates
+# the npm package tarball for publishing
 # ============================================================================
-FROM source AS test-smoke
-
-ARG BUILD_RUN_ID=""
-
-RUN --mount=type=cache,target=/pnpm-store,id=diff-builder-pnpm \
-    echo "${BUILD_RUN_ID}" > /tmp/.build-run-id && \
-    pnpm test:smoke && \
-    mkdir -p /out && \
-    touch /out/test-smoke.txt
-
-FROM scratch AS test-smoke-output
-COPY --from=test-smoke /out/ /
-
-# ============================================================================
-# Stage: full-build
-# Runs quality gates (lint + tests), builds the library, and creates the
-# npm package tarball for publishing
-# ============================================================================
-FROM source AS full-build
+FROM source AS build
 
 ARG BUILD_RUN_ID=""
 
@@ -107,4 +73,4 @@ RUN --mount=type=cache,target=/pnpm-store,id=diff-builder-pnpm \
     cp diff-builder.tgz /out/artifacts/
 
 FROM scratch AS build-output
-COPY --from=full-build /out/artifacts/ /
+COPY --from=build /out/artifacts/ /
