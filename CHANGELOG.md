@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+### Changed
+
+### Deprecated
+
+### Removed
+
+### Fixed
+
+### Security
+
 ## [1.1.4] - 2026-03-31
 
 ### Fixed
@@ -13,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `moduleResolution: bundler | node16 | nodenext`.
   Added `"types"` condition to all `exports` map entries in `package.json`.
 
+[Unreleased]: https://github.com/AdguardTeam/DiffBuilder/compare/v1.1.4...HEAD
 [1.1.4]: https://github.com/AdguardTeam/DiffBuilder/compare/v1.1.2...v1.1.4
 
 ## [1.1.2] - 2025-06-18

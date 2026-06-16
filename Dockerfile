@@ -62,9 +62,10 @@ ARG BUILD_RUN_ID=""
 
 RUN --mount=type=cache,target=/pnpm-store,id=diff-builder-pnpm \
     echo "${BUILD_RUN_ID}" > /tmp/.build-run-id && \
+    pnpm lint && \
     pnpm test && \
     mkdir -p /out && \
-    touch /out/test.txt
+    touch /out/test-passed.txt
 
 FROM scratch AS test-output
 COPY --from=test /out/ /
@@ -106,5 +107,5 @@ RUN --mount=type=cache,target=/pnpm-store,id=diff-builder-pnpm \
     cp diff-builder.tgz /out/artifacts/ && \
     cp build.txt /out/artifacts/
 
-FROM scratch AS full-build-output
-COPY --from=full-build /out/ /
+FROM scratch AS build-output
+COPY --from=full-build /out/artifacts/ /
