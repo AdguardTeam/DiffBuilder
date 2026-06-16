@@ -47,6 +47,7 @@ RUN --mount=type=cache,target=/pnpm-store,id=diff-builder-pnpm \
     echo "${BUILD_RUN_ID}" > /tmp/.build-run-id && \
     pnpm lint && \
     pnpm test && \
+    pnpm build && \
     mkdir -p /out && \
     touch /out/test-passed.txt
 
