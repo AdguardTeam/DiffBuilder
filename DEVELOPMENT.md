@@ -56,6 +56,11 @@ diff --version
     cd ext-diff-builder
     ```
 
+    > **Note:** If you only need to use or extend the library, you
+    > can clone the
+    > [public mirror](https://github.com/AdguardTeam/DiffBuilder)
+    > instead.
+
 2. **Install dependencies**
 
     ```bash
