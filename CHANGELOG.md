@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+## [1.1.5] - 2026-06-18
+
 ## [1.1.4] - 2026-03-31
 
 ### Fixed
@@ -27,7 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `moduleResolution: bundler | node16 | nodenext`.
   Added `"types"` condition to all `exports` map entries in `package.json`.
 
-[Unreleased]: https://github.com/AdguardTeam/DiffBuilder/compare/v1.1.4...HEAD
+[Unreleased]: https://github.com/AdguardTeam/DiffBuilder/compare/v1.1.5...HEAD
+[1.1.5]: https://github.com/AdguardTeam/DiffBuilder/compare/v1.1.4...v1.1.5
 [1.1.4]: https://github.com/AdguardTeam/DiffBuilder/compare/v1.1.2...v1.1.4
 
 ## [1.1.2] - 2025-06-18
