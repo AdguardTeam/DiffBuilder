@@ -3,7 +3,11 @@ import { Command } from 'commander';
 
 import { PATCH_FILE_ERROR_TEXT, Resolution, isPatchNameValid } from '../common/patch-name';
 import { buildDiff } from '../diff-builder/build';
-import { version } from '../../package.json';
+import packageJson from '../../package.json';
+
+// Version is injected at release time (see publish-release.yml);
+// falls back to '0.0.0' in development.
+const packageVersion = (packageJson as unknown as { version?: string }).version ?? '0.0.0';
 
 const program = new Command();
 
@@ -14,7 +18,7 @@ async function main(): Promise<void> {
     program
         .name('diff-builder')
         .description('A tool for generating differential updates for filter lists.')
-        .version(version);
+        .version(packageVersion);
 
     program
         /* eslint-disable max-len */

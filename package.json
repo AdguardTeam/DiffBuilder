@@ -1,6 +1,5 @@
 {
     "name": "@adguard/diff-builder",
-    "version": "1.1.4",
     "description": "A tool for generating differential updates for filter lists.",
     "repository": {
         "type": "git",
@@ -58,7 +57,6 @@
     "scripts": {
         "prebuild": "rimraf dist && pnpm build:types",
         "build": "rollup -c rollup.config.ts --configPlugin typescript",
-        "postbuild": "ts-node tasks/build-txt",
         "watch": "rollup -c rollup.config.ts --configPlugin typescript -w",
         "build:types": "tsc --project tsconfig.build.json --declaration --emitDeclarationOnly --outdir dist/types",
         "lint": "pnpm lint:code && pnpm lint:types && pnpm lint:md",
