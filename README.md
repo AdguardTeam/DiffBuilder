@@ -6,6 +6,11 @@ a full filter on every update, the server produces a compact RCS-format patch
 for each revision and the client fetches only the patches it has not yet
 applied.
 
+> **Note:** This package is developed in
+> [AdGuardSoftwareLimited/ext-diff-builder](https://github.com/AdGuardSoftwareLimited/ext-diff-builder).
+> The [AdguardTeam/DiffBuilder](https://github.com/AdguardTeam/DiffBuilder)
+> repository is a public mirror.
+
 The package ships two independent APIs and a CLI:
 
 - **`DiffBuilder`** — server-side (Node.js / CI): compares two filter
@@ -263,5 +268,6 @@ try {
 ## Documentation
 
 - [Development](DEVELOPMENT.md)
+- [Deployment](DEPLOYMENT.md)
 - [Changelog](CHANGELOG.md)
 - [LLM agent rules](AGENTS.md)

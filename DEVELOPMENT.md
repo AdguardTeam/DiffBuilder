@@ -52,9 +52,14 @@ diff --version
 1. **Clone the repository**
 
     ```bash
-    git clone https://github.com/AdguardTeam/DiffBuilder.git
-    cd DiffBuilder
+    git clone git@github.com:AdGuardSoftwareLimited/ext-diff-builder.git
+    cd ext-diff-builder
     ```
+
+    > **Note:** If you only need to use or extend the library, you
+    > can clone the
+    > [public mirror](https://github.com/AdguardTeam/DiffBuilder)
+    > instead.
 
 2. **Install dependencies**
 
@@ -205,6 +210,23 @@ pnpm tgz
 
 This produces `diff-builder.tgz` in the project root, suitable for local
 testing with `pnpm add ./diff-builder.tgz` in another project.
+
+### Running the Full CI Pipeline Locally
+
+The `Dockerfile` defines a multi-stage BuildKit pipeline. To run it
+locally:
+
+```bash
+DOCKER_BUILDKIT=1 docker build --progress plain --target test-output .
+```
+
+To produce the release artifact:
+
+```bash
+DOCKER_BUILDKIT=1 docker build --progress plain --target build-output --output ./artifacts .
+```
+
+The artifact `diff-builder.tgz` will be in the `artifacts/` directory.
 
 ## Troubleshooting
 

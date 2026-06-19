@@ -3,7 +3,7 @@
     "description": "A tool for generating differential updates for filter lists.",
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/AdguardTeam/DiffBuilder.git"
+        "url": "git+https://github.com/AdGuardSoftwareLimited/ext-diff-builder.git"
     },
     "bugs": {
         "url": "https://github.com/AdguardTeam/DiffBuilder/issues"
@@ -15,7 +15,9 @@
     "types": "dist/types/diff-builder/index.d.ts",
     "files": [
         "dist",
-        "src"
+        "README.md",
+        "LICENSE",
+        "CHANGELOG.md"
     ],
     "exports": {
         ".": {
