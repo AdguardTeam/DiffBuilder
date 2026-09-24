@@ -192,19 +192,30 @@ export const applyRcsPatch = (
             }
             index += stringsToAdd.length;
 
-            // NOTE: Use slice/concat-based insertion instead of spreading
+            // NOTE: Use in-place insertion instead of spreading
             // `stringsToAdd` into `unshift`/`push`/`splice`: spreading a huge
             // number of lines overflows the V8 call stack
             // ("Maximum call stack size exceeded") for patches with ~100K+
             // added lines.
             if (startIndexWithOffset < 0) {
                 lines = stringsToAdd.concat(lines);
-            } else if (startIndexWithOffset > lines.length) {
-                lines = lines.concat(stringsToAdd);
+            } else if (startIndexWithOffset >= lines.length) {
+                // Append in place, without copying the whole array.
+                for (let i = 0; i < stringsToAdd.length; i += 1) {
+                    lines.push(stringsToAdd[i]);
+                }
             } else {
-                lines = lines
-                    .slice(0, startIndexWithOffset + 1)
-                    .concat(stringsToAdd, lines.slice(startIndexWithOffset + 1));
+                // Rebuild the array in a single pass so that every line is
+                // copied at most once.
+                const insertIndex = startIndexWithOffset + 1;
+                const updatedLines = lines.slice(0, insertIndex);
+                for (let i = 0; i < stringsToAdd.length; i += 1) {
+                    updatedLines.push(stringsToAdd[i]);
+                }
+                for (let i = insertIndex; i < lines.length; i += 1) {
+                    updatedLines.push(lines[i]);
+                }
+                lines = updatedLines;
             }
 
             currentOffset += numberOfLines;

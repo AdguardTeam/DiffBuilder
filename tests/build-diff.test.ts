@@ -160,4 +160,24 @@ describe('buildDiff', () => {
         expect(patchSizes.filter((size) => size === 0)).toHaveLength(1);
         expect(patchSizes.filter((size) => size > 0)).toHaveLength(1);
     });
+
+    it('throws when maxPatchSize is not a positive finite number', async () => {
+        const oldFilter = '! Title: Test filter\n||example.org^\n';
+        const newFilter = '! Title: Test filter\n||example.com^\n';
+        await fs.promises.writeFile(oldFilterPath, oldFilter);
+        await fs.promises.writeFile(newFilterPath, newFilter);
+
+        const invalidMaxPatchSizes = [0, -1, Number.NaN, Number.POSITIVE_INFINITY];
+
+        await Promise.all(invalidMaxPatchSizes.map(async (maxPatchSize) => {
+            await expect(buildDiff({
+                oldFilterPath,
+                newFilterPath,
+                patchesPath,
+                name: 'filter',
+                time: 60,
+                maxPatchSize,
+            })).rejects.toThrow('Maximum patch size should be a positive number.');
+        }));
+    });
 });
