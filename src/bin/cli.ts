@@ -31,6 +31,7 @@ async function main(): Promise<void> {
         .option('-r, --resolution <timestampResolution>', 'is an optional flag, that specifies the resolution for both `expirationPeriod` and `epochTimestamp` (timestamp when the patch was generated). It can be either `h` (hours), `m` (minutes) or `s` (seconds). If `resolution` is not specified, it is assumed to be `h`.')
         .option('-c, --checksum', 'an optional flag, indicating whether it should calculate the SHA sum for the filter and add it to the `diff` directive with the filter name and the number of changed lines, following this format: `diff name:[name] checksum:[checksum] lines:[lines]`')
         .option('-d, --delete-older-than-sec <seconds>', 'an optional parameter, the time to live for the patch in *seconds*. By default, it will be `604800` (7 days). The utility will scan `<path_to_patches>` and delete patches whose created epoch timestamp has expired, if they are not empty.')
+        .option('--max-patch-size <bytes>', 'an optional maximum size of the generated patch in bytes. If the generated patch exceeds this limit, it will not be created, and the new filter will be published without the `Diff-Path` tag. By default, it will be `1048576` (1 MB).')
         .option('-v, --verbose', 'verbose mode')
         /* eslint-enable max-len */
         .action(async (
@@ -45,6 +46,7 @@ async function main(): Promise<void> {
                 resolution,
                 checksum,
                 deleteOlderThanSec,
+                maxPatchSize,
                 verbose,
             } = options;
 
@@ -56,6 +58,16 @@ async function main(): Promise<void> {
                 throw new Error(PATCH_FILE_ERROR_TEXT);
             }
 
+            const parsedMaxPatchSize = maxPatchSize === undefined
+                ? undefined
+                : Number(maxPatchSize);
+            const isMaxPatchSizeValid = parsedMaxPatchSize === undefined
+                || (Number.isFinite(parsedMaxPatchSize) && parsedMaxPatchSize > 0);
+
+            if (!isMaxPatchSizeValid) {
+                throw new Error('Maximum patch size should be a positive number.');
+            }
+
             await buildDiff({
                 oldFilterPath,
                 newFilterPath,
@@ -65,6 +77,7 @@ async function main(): Promise<void> {
                 resolution,
                 checksum,
                 deleteOlderThanSec,
+                maxPatchSize: parsedMaxPatchSize,
                 verbose,
             });
         });

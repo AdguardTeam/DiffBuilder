@@ -142,6 +142,7 @@ diff-builder build [options] <old_filter> <new_filter> <path_to_patches>
 | `-r, --resolution <h\|m\|s>`            | No       | Time unit for `--time` and the embedded timestamp: `h` hours (default), `m` minutes, `s` seconds. |
 | `-c, --checksum`                        | No       | Embed a SHA-1 checksum of the post-patch filter content in the patch.                             |
 | `-d, --delete-older-than-sec <seconds>` | No       | Remove non-empty patch files older than this many seconds. Default: `604800` (7 days).            |
+| `--max-patch-size <bytes>`              | No       | Max patch size in bytes. Exceeding it skips the patch and omits `Diff-Path` (default 1 MB).       |
 | `-v, --verbose`                         | No       | Print progress messages to stdout.                                                                |
 
 **Example — 60-minute patches with checksum validation:**
@@ -189,6 +190,7 @@ await DiffBuilder.buildDiff({
     resolution,      // 'h' | 'm' | 's' — time unit (default: 'h')
     checksum,        // boolean — embed SHA-1 checksum (default: false)
     deleteOlderThanSec, // number — TTL for old patches in seconds (default: 604800)
+    maxPatchSize,    // number — max patch size in bytes (default: 1048576)
     verbose,         // boolean — print progress messages (default: false)
 });
 ```
@@ -199,6 +201,9 @@ When called:
    without writing any files.
 2. Otherwise it creates a new patch file in `patchesPath`, updates the
    `Diff-Path` tag in `newFilterPath`, and removes expired patches.
+3. If the generated patch is larger than `maxPatchSize`, it is not written:
+   the `Diff-Path` tag is not added to `newFilterPath`, and empty placeholder
+   patches are removed from `patchesPath`.
 
 ### DiffUpdater (Node.js / Browser)
 

@@ -149,7 +149,7 @@ export const applyRcsPatch = (
     checksum?: string,
 ): string => {
     // Make a copy
-    const lines = filterContent.slice();
+    let lines = filterContent.slice();
 
     // NOTE: Note that the line indices start always refer to the text which is
     // transformed as it is in its original state, without taking the precending
@@ -192,12 +192,19 @@ export const applyRcsPatch = (
             }
             index += stringsToAdd.length;
 
+            // NOTE: Use slice/concat-based insertion instead of spreading
+            // `stringsToAdd` into `unshift`/`push`/`splice`: spreading a huge
+            // number of lines overflows the V8 call stack
+            // ("Maximum call stack size exceeded") for patches with ~100K+
+            // added lines.
             if (startIndexWithOffset < 0) {
-                lines.unshift(...stringsToAdd);
+                lines = stringsToAdd.concat(lines);
             } else if (startIndexWithOffset > lines.length) {
-                lines.push(...stringsToAdd);
+                lines = lines.concat(stringsToAdd);
             } else {
-                lines.splice(startIndexWithOffset + 1, 0, ...stringsToAdd);
+                lines = lines
+                    .slice(0, startIndexWithOffset + 1)
+                    .concat(stringsToAdd, lines.slice(startIndexWithOffset + 1));
             }
 
             currentOffset += numberOfLines;

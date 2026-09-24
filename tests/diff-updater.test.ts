@@ -78,6 +78,22 @@ describe('check diff-updater', () => {
 
             expect(updatedFilter).toStrictEqual(newFilter);
         });
+
+        it('applies a patch with a huge add block without stack overflow', () => {
+            const addedLinesCount = 500_000;
+            const oldFilterLines = ['! Title: Huge patch test\n'];
+            const patchLines = [`a1 ${addedLinesCount}\n`];
+
+            for (let i = 0; i < addedLinesCount; i += 1) {
+                patchLines.push(`||example-${i}.org^\n`);
+            }
+
+            const updatedFilter = applyRcsPatch(oldFilterLines, patchLines);
+
+            const updatedLines = splitByLines(updatedFilter);
+            expect(updatedLines).toHaveLength(addedLinesCount + 1);
+            expect(updatedLines[addedLinesCount]).toStrictEqual('||example-499999.org^\n');
+        });
     });
 
     describe('applyPatch', () => {
