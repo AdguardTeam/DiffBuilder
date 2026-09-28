@@ -28,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   diff updates.
 - `DiffUpdater.applyPatch` no longer fails with "Maximum call stack size
   exceeded" when applying a patch with a huge add block (`applyRcsPatch`
-  now inserts lines with slice/concat instead of spread).
+  now inserts lines in chunks instead of spreading them all at once).
 
 ### Security
 
