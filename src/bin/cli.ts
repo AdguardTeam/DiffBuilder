@@ -61,12 +61,6 @@ async function main(): Promise<void> {
             const parsedMaxPatchSize = maxPatchSize === undefined
                 ? undefined
                 : Number(maxPatchSize);
-            const isMaxPatchSizeValid = parsedMaxPatchSize === undefined
-                || (Number.isFinite(parsedMaxPatchSize) && parsedMaxPatchSize > 0);
-
-            if (!isMaxPatchSizeValid) {
-                throw new Error('Maximum patch size should be a positive number.');
-            }
 
             await buildDiff({
                 oldFilterPath,

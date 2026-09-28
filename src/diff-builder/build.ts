@@ -229,6 +229,10 @@ const deleteEmptyPatches = async (absolutePatchesPath: string): Promise<number> 
 
     const deleted = await Promise.all(tasksToDeleteFiles);
 
+    if (deleted.length > 0) {
+        log(`Deleted ${deleted.length} empty patches from "${absolutePatchesPath}".`);
+    }
+
     return deleted.length;
 };
 
@@ -545,10 +549,7 @@ export const buildDiff = async (params: BuildDiffParams): Promise<void> => {
         log('The patch will not be created, and the new filter will be published without the "Diff-Path" tag.');
         log('Clients will download the full filter instead of applying a patch.');
 
-        const deletedEmptyPatches = await deleteEmptyPatches(absolutePatchesPath);
-        if (deletedEmptyPatches > 0) {
-            log(`Deleted ${deletedEmptyPatches} empty patches from "${absolutePatchesPath}".`);
-        }
+        await deleteEmptyPatches(absolutePatchesPath);
 
         return;
     }
@@ -567,10 +568,7 @@ export const buildDiff = async (params: BuildDiffParams): Promise<void> => {
     // will never be filled. Delete them before creating a new placeholder so
     // that the patches folder contains exactly one empty patch.
     if (!oldFilePatchName) {
-        const deletedEmptyPatches = await deleteEmptyPatches(absolutePatchesPath);
-        if (deletedEmptyPatches > 0) {
-            log(`Deleted ${deletedEmptyPatches} empty patches from "${absolutePatchesPath}".`);
-        }
+        await deleteEmptyPatches(absolutePatchesPath);
     }
 
     // Create an empty patch for the future version if it doesn't exist.

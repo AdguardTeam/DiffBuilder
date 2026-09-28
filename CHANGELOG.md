@@ -24,7 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `DiffBuilder.buildDiff` no longer leaves the patches folder in a broken
   state when a patch cannot be created: oversized patches are skipped and
   the new filter is published without the `Diff-Path` tag, stale empty
-  placeholders are deleted, and the next build bootstraps diff updates.
+  placeholders are deleted, and the next build with changes bootstraps
+  diff updates.
 - `DiffUpdater.applyPatch` no longer fails with "Maximum call stack size
   exceeded" when applying a patch with a huge add block (`applyRcsPatch`
   now inserts lines with slice/concat instead of spread).

@@ -97,6 +97,10 @@ const AcceptableHttpStatusCodes = {
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 type AcceptableHttpStatusCodes = typeof AcceptableHttpStatusCodes[keyof typeof AcceptableHttpStatusCodes];
 
+// Number of lines inserted per `splice` call. Spreading a larger number of
+// lines at once overflows the V8 call stack.
+const INSERT_CHUNK_SIZE = 10000;
+
 /**
  * Parses an RCS (Revision Control System) operation string into an object
  * containing operation details.
@@ -149,7 +153,7 @@ export const applyRcsPatch = (
     checksum?: string,
 ): string => {
     // Make a copy
-    let lines = filterContent.slice();
+    const lines = filterContent.slice();
 
     // NOTE: Note that the line indices start always refer to the text which is
     // transformed as it is in its original state, without taking the precending
@@ -192,30 +196,20 @@ export const applyRcsPatch = (
             }
             index += stringsToAdd.length;
 
-            // NOTE: Use in-place insertion instead of spreading
-            // `stringsToAdd` into `unshift`/`push`/`splice`: spreading a huge
-            // number of lines overflows the V8 call stack
-            // ("Maximum call stack size exceeded") for patches with ~100K+
-            // added lines.
-            if (startIndexWithOffset < 0) {
-                lines = stringsToAdd.concat(lines);
-            } else if (startIndexWithOffset >= lines.length) {
-                // Append in place, without copying the whole array.
-                for (let i = 0; i < stringsToAdd.length; i += 1) {
-                    lines.push(stringsToAdd[i]);
-                }
-            } else {
-                // Rebuild the array in a single pass so that every line is
-                // copied at most once.
-                const insertIndex = startIndexWithOffset + 1;
-                const updatedLines = lines.slice(0, insertIndex);
-                for (let i = 0; i < stringsToAdd.length; i += 1) {
-                    updatedLines.push(stringsToAdd[i]);
-                }
-                for (let i = insertIndex; i < lines.length; i += 1) {
-                    updatedLines.push(lines[i]);
-                }
-                lines = updatedLines;
+            // NOTE: Insert in chunks instead of spreading all `stringsToAdd`
+            // at once: spreading ~100K+ lines overflows the V8 call stack
+            // ("Maximum call stack size exceeded"). Native `splice` is used
+            // instead of rebuilding the array in a JS loop to keep the
+            // insertion speed. The index is clamped to zero because
+            // `startIndexWithOffset` can drop below -1 after deletions at the
+            // beginning of the filter.
+            const insertIndex = Math.max(startIndexWithOffset + 1, 0);
+            for (let i = 0; i < stringsToAdd.length; i += INSERT_CHUNK_SIZE) {
+                lines.splice(
+                    insertIndex + i,
+                    0,
+                    ...stringsToAdd.slice(i, i + INSERT_CHUNK_SIZE),
+                );
             }
 
             currentOffset += numberOfLines;
