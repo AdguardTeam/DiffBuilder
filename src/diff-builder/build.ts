@@ -247,19 +247,21 @@ export const updateTags = (
 };
 
 /**
- * Validates a patch by comparing the old file with the new file after applying the patch.
+ * Applies the patch to the old file and compares the result with the new file.
  *
  * @param oldFile The original file content as a string.
  * @param newFile The expected file content after the patch is applied.
  * @param patch The patch content as a string.
  *
- * @returns Returns true if the patched old file matches the new file, false otherwise.
+ * @returns The validation result: `{ valid: true }` if the patched old file
+ * matches the new file; otherwise `{ valid: false, error }` with the error
+ * that prevented the patch from being applied or the mismatch error.
  */
-export const isPatchValid = (
+export const validatePatch = (
     oldFile: string,
     newFile: string,
     patch: string,
-): boolean => {
+): { valid: true } | { valid: false, error: unknown } => {
     const patchLines = splitByLines(patch);
 
     const diffDirective = parseDiffDirective(patchLines[0]);
@@ -271,11 +273,18 @@ export const isPatchValid = (
             diffDirective ? diffDirective.checksum : undefined,
         );
 
-        return updatedFile === newFile;
+        if (updatedFile !== newFile) {
+            return {
+                valid: false,
+                error: new Error('old file with applied patch is not equal to new file.'),
+            };
+        }
+
+        return { valid: true };
     } catch (e) {
         log(`Failed to apply patch to the old file: ${getErrorMessage(e)}`);
 
-        return false;
+        return { valid: false, error: e };
     }
 };
 
@@ -385,6 +394,9 @@ export const updateFileAndCreatePatch = async (
  * @param params The parameters including paths, resolution, and other settings
  * for diff generation.
  *
+ * @throws Error if the generated patch fails self-validation: the patch cannot
+ * be applied to the old filter or its result differs from the new filter.
+ *
  * @returns A promise that resolves when the diff operation is complete.
  */
 export const buildDiff = async (params: BuildDiffParams): Promise<void> => {
@@ -477,9 +489,16 @@ export const buildDiff = async (params: BuildDiffParams): Promise<void> => {
         oldFilePatchName,
     );
 
-    if (!isPatchValid(oldFile, newFileWithUpdatedTags, patch)) {
-        log('Validating generated patch failed: old file with applied patch is not equal to new file.');
-        return;
+    // Note: the new filter and patch files are only written after this check,
+    // so a failed validation leaves the previous filter content untouched:
+    // no updated 'Diff-Path' tag and no placeholder patch. Expired patches
+    // may already have been deleted above.
+    const validation = validatePatch(oldFile, newFileWithUpdatedTags, patch);
+    if (!validation.valid) {
+        throw new Error(
+            `Validating generated patch failed: ${getErrorMessage(validation.error)}`,
+            { cause: validation.error },
+        );
     }
 
     // Write the updated content to the new filter with an updated 'Diff-Path' and 'Checksum'.

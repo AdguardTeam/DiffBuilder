@@ -1,4 +1,4 @@
-import { isPatchValid } from '../src/diff-builder/build';
+import { validatePatch } from '../src/diff-builder/build';
 import {
     FILE_1,
     FILE_2,
@@ -66,7 +66,7 @@ describe('check is patch valid', () => {
             filter2,
             patch,
         ) => {
-            expect(isPatchValid(filter1, filter2, patch)).toBeTruthy();
+            expect(validatePatch(filter1, filter2, patch)).toStrictEqual({ valid: true });
         });
 
         it.each(cases)('checks patch with diff directive', (
@@ -75,7 +75,13 @@ describe('check is patch valid', () => {
             patch,
             diffDirective,
         ) => {
-            expect(isPatchValid(filter1, filter2, diffDirective.concat(...['\n', patch]))).toBeTruthy();
+            const res = validatePatch(
+                filter1,
+                filter2,
+                diffDirective.concat(...['\n', patch]),
+            );
+
+            expect(res).toStrictEqual({ valid: true });
         });
     });
 
@@ -89,7 +95,7 @@ describe('check is patch valid', () => {
             filter2,
             patch,
         ) => {
-            expect(isPatchValid(filter1, filter2, patch)).toBeTruthy();
+            expect(validatePatch(filter1, filter2, patch)).toStrictEqual({ valid: true });
         });
     });
 });

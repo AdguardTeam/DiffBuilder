@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `buildDiff` now throws an error when the generated patch fails
+  self-validation instead of silently returning. This makes CI fail
+  instead of committing and publishing a broken patch.
+
 ### Security
 
 ## [1.1.7] - 2026-06-29
