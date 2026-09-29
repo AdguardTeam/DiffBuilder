@@ -1,4 +1,4 @@
-import { isPatchValid } from '../src/diff-builder/build';
+import { validatePatch } from '../src/diff-builder/build';
 import { FILTER_3_V_1_0_0, FILTER_3_V_1_0_1, PATCH_3_1_0_0 } from './stubs/name';
 import {
     FILE_1, FILE_2, FILE_1_2_PATCH,
@@ -9,7 +9,7 @@ import {
 import { FILTER_1_V_1_0_0, FILTER_1_V_1_0_1, PATCH_1_1_0_0 } from './stubs/simple';
 import { FILTER_2_V_1_0_0, FILTER_2_V_1_0_1, PATCH_2_1_0_0 } from './stubs/validation';
 
-describe('isPatchValid', () => {
+describe('validatePatch', () => {
     const cases = [
         [FILTER_1_V_1_0_0, FILTER_1_V_1_0_1, PATCH_1_1_0_0],
         [FILTER_2_V_1_0_0, FILTER_2_V_1_0_1, PATCH_2_1_0_0],
@@ -20,17 +20,17 @@ describe('isPatchValid', () => {
         [FILE_7, FILE_8, FILE_7_8_PATCH],
     ];
 
-    it.each(cases)('isPatchValid: "%s"', (
+    it.each(cases)('validatePatch: "%s"', (
         oldFilter,
         newFilter,
         patch,
     ) => {
-        const res = isPatchValid(
+        const res = validatePatch(
             oldFilter,
             newFilter,
             patch,
         );
 
-        expect(res).toBeTruthy();
+        expect(res).toStrictEqual({ valid: true });
     });
 });

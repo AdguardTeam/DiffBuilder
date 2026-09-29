@@ -29,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `DiffUpdater.applyPatch` no longer fails with "Maximum call stack size
   exceeded" when applying a patch with a huge add block (`applyRcsPatch`
   now inserts lines in chunks instead of spreading them all at once).
+- `buildDiff` now throws an error when the generated patch fails
+  self-validation instead of silently returning. This makes CI fail
+  instead of committing and publishing a broken patch.
 
 ### Security
 

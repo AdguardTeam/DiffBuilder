@@ -205,6 +205,14 @@ When called:
    the `Diff-Path` tag is not added to `newFilterPath`, and empty placeholder
    patches are removed from `patchesPath`.
 
+**Errors:**
+
+- Rejects if the generated patch fails self-validation: the patch cannot be
+  applied to the old filter, or the patched old filter differs from the new
+  one. The underlying error is attached as `cause`.
+- The new filter and the patch files are not written on rejection; expired
+  patches may already have been deleted.
+
 ### DiffUpdater (Node.js / Browser)
 
 Fetches and applies pending patches to bring a locally stored filter up to

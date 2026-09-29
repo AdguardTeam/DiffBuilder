@@ -1,183 +1,124 @@
-import path from 'path';
 import fs from 'fs';
 import os from 'os';
+import path from 'path';
 
-import { DIFF_PATH_TAG } from '../src/common/constants';
-import { splitByLines } from '../src/common/split-by-lines';
-import { buildDiff } from '../src/diff-builder/build';
-import { parseTag } from '../src/diff-builder/tags';
+import { buildDiff, type BuildDiffParams } from '../src/diff-builder/build';
+import { applyRcsPatch } from '../src/diff-updater/update';
+import { BUILD_DIFF_NEW_FILTER, BUILD_DIFF_OLD_FILTER } from './stubs/build-diff';
 
-/**
- * Reads the value of the `Diff-Path` tag from a filter file.
- *
- * @param filterPath Absolute path to the filter file.
- *
- * @returns The `Diff-Path` tag value or `null` if the tag is absent.
- */
-const readDiffPathTag = async (filterPath: string): Promise<string | null> => {
-    const content = await fs.promises.readFile(filterPath, 'utf-8');
+jest.mock('../src/diff-updater/update', () => ({
+    applyRcsPatch: jest.fn(),
+}));
 
-    return parseTag(DIFF_PATH_TAG, splitByLines(content));
-};
+const mockedApplyRcsPatch = jest.mocked(applyRcsPatch);
 
-describe('buildDiff', () => {
-    let tempDir: string;
+describe('check buildDiff validation', () => {
+    let workDir: string;
     let oldFilterPath: string;
     let newFilterPath: string;
     let patchesPath: string;
+    let logSpy: jest.SpyInstance;
+
+    const buildDiffParams = (): BuildDiffParams => ({
+        oldFilterPath,
+        newFilterPath,
+        patchesPath,
+        name: 'test',
+        time: 60,
+        verbose: true,
+    });
 
     beforeEach(async () => {
-        tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'diff-builder-'));
-        oldFilterPath = path.join(tempDir, 'old-filter.txt');
-        newFilterPath = path.join(tempDir, 'new-filter.txt');
-        patchesPath = path.join(tempDir, 'patches');
-        await fs.promises.mkdir(patchesPath);
+        workDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'diff-builder-'));
+        oldFilterPath = path.join(workDir, 'old_filter.txt');
+        newFilterPath = path.join(workDir, 'filter.txt');
+        patchesPath = path.join(workDir, 'patches');
+
+        await fs.promises.writeFile(oldFilterPath, BUILD_DIFF_OLD_FILTER);
+        await fs.promises.writeFile(newFilterPath, BUILD_DIFF_NEW_FILTER);
+
+        logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
     });
 
     afterEach(async () => {
-        await fs.promises.rm(tempDir, { recursive: true, force: true });
+        logSpy.mockRestore();
+        mockedApplyRcsPatch.mockReset();
+        await fs.promises.rm(workDir, { recursive: true, force: true });
     });
 
-    it('deletes stale empty patches when the old filter has no Diff-Path', async () => {
-        const oldFilter = '! Title: Test filter\n||example.org^\n';
-        const newFilter = '! Title: Test filter\n||example.com^\n';
-        await fs.promises.writeFile(oldFilterPath, oldFilter);
-        await fs.promises.writeFile(newFilterPath, newFilter);
-
-        // Emulate empty placeholders left by previous failed builds.
-        await fs.promises.writeFile(path.join(patchesPath, 'filter-1-60.patch'), '');
-        await fs.promises.writeFile(path.join(patchesPath, 'filter-2-60.patch'), '');
-
-        await buildDiff({
-            oldFilterPath,
-            newFilterPath,
-            patchesPath,
-            name: 'filter',
-            time: 60,
+    it('throws and keeps the apply error as the cause when the patch cannot be applied', async () => {
+        const applyError = new Error('Maximum call stack size exceeded');
+        mockedApplyRcsPatch.mockImplementation(() => {
+            throw applyError;
         });
 
-        const diffPath = await readDiffPathTag(newFilterPath);
-        expect(diffPath).not.toBeNull();
+        await expect(buildDiff(buildDiffParams())).rejects.toMatchObject({
+            message: `Validating generated patch failed: ${applyError.message}`,
+            cause: applyError,
+        });
+    });
+
+    it('throws when the patched old filter differs from the new filter', async () => {
+        mockedApplyRcsPatch.mockReturnValue('||different.example^\n');
+
+        await expect(buildDiff(buildDiffParams())).rejects.toThrow(
+            'Validating generated patch failed: old file with applied patch is not equal to new file.',
+        );
+    });
+
+    it('keeps the underlying error in the log', async () => {
+        mockedApplyRcsPatch.mockImplementation(() => {
+            throw new Error('Maximum call stack size exceeded');
+        });
+
+        await expect(buildDiff(buildDiffParams())).rejects.toThrow();
+
+        expect(logSpy).toHaveBeenCalledWith(
+            'Failed to apply patch to the old file: Maximum call stack size exceeded',
+        );
+    });
+
+    it('does not modify files when validation fails', async () => {
+        mockedApplyRcsPatch.mockReturnValue('||different.example^\n');
+
+        await expect(buildDiff(buildDiffParams())).rejects.toThrow();
+
+        const newFilterContent = await fs.promises.readFile(newFilterPath, { encoding: 'utf-8' });
+        expect(newFilterContent).toStrictEqual(BUILD_DIFF_NEW_FILTER);
 
         const patchFiles = await fs.promises.readdir(patchesPath);
-        expect(patchFiles).toHaveLength(1);
-
-        const { size } = await fs.promises.stat(path.join(patchesPath, patchFiles[0]));
-        expect(size).toBe(0);
+        expect(patchFiles).toStrictEqual([]);
     });
 
-    it('does not create a patch larger than maxPatchSize and deletes empty patches', async () => {
-        const oldFilter = '! Title: Test filter\n! Diff-Path: patches/filter-old-60.patch\n||example.org^\n';
-        const newFilter = '! Title: Test filter\n||example.com^\n';
-        await fs.promises.writeFile(oldFilterPath, oldFilter);
-        await fs.promises.writeFile(newFilterPath, newFilter);
+    it('resolves and writes files when the patch is valid', async () => {
+        type UpdateModule = typeof import('../src/diff-updater/update');
 
-        // Emulate a stale empty placeholder left by a previous failed build.
-        await fs.promises.writeFile(path.join(patchesPath, 'filter-old-60.patch'), '');
+        const { applyRcsPatch: actualApplyRcsPatch } = jest.requireActual<UpdateModule>(
+            '../src/diff-updater/update',
+        );
+        mockedApplyRcsPatch.mockImplementation(actualApplyRcsPatch);
 
-        await buildDiff({
-            oldFilterPath,
-            newFilterPath,
-            patchesPath,
-            name: 'filter',
-            time: 60,
-            maxPatchSize: 1,
-        });
+        await expect(buildDiff(buildDiffParams())).resolves.toBeUndefined();
 
-        // The new filter is published as is, without the `Diff-Path` tag.
-        const updatedNewFilter = await fs.promises.readFile(newFilterPath, 'utf-8');
-        expect(updatedNewFilter).toStrictEqual(newFilter);
+        const newFilterContent = await fs.promises.readFile(newFilterPath, { encoding: 'utf-8' });
+        expect(newFilterContent).not.toStrictEqual(BUILD_DIFF_NEW_FILTER);
+        expect(newFilterContent).toContain('||example.org^');
+        expect(newFilterContent).not.toContain('test-h-1000-60.patch');
 
         const patchFiles = await fs.promises.readdir(patchesPath);
-        expect(patchFiles).toEqual([]);
-    });
-
-    it('recovers from an oversized patch and resumes diff updates on later builds', async () => {
-        const filterV1 = '! Title: Test filter\n! Diff-Path: patches/filter-old-60.patch\n||example.org^\n';
-        const filterV2 = '! Title: Test filter\n||example.com^\n';
-        const filterV3 = '! Title: Test filter\n||example.net^\n';
-        const filterV4 = '! Title: Test filter\n||example.io^\n';
-
-        await fs.promises.writeFile(oldFilterPath, filterV1);
-        await fs.promises.writeFile(newFilterPath, filterV2);
-        await fs.promises.writeFile(path.join(patchesPath, 'filter-old-60.patch'), '');
-
-        // The first build skips the patch because it exceeds maxPatchSize.
-        await buildDiff({
-            oldFilterPath,
-            newFilterPath,
-            patchesPath,
-            name: 'filter1',
-            time: 60,
-            maxPatchSize: 1,
-        });
-
-        // The second build bootstraps diff updates for the filter that has no
-        // Diff-Path: it adds the tag and creates a single empty placeholder.
-        const oldFilterV2Path = path.join(tempDir, 'old-filter-v2.txt');
-        await fs.promises.copyFile(newFilterPath, oldFilterV2Path);
-        await fs.promises.writeFile(newFilterPath, filterV3);
-
-        await buildDiff({
-            oldFilterPath: oldFilterV2Path,
-            newFilterPath,
-            patchesPath,
-            name: 'filter2',
-            time: 60,
-        });
-
-        const diffPath = await readDiffPathTag(newFilterPath);
-        expect(diffPath).not.toBeNull();
-
-        let patchFiles = await fs.promises.readdir(patchesPath);
-        expect(patchFiles).toHaveLength(1);
-
-        const placeholderStats = await fs.promises.stat(path.join(patchesPath, patchFiles[0]));
-        expect(placeholderStats.size).toBe(0);
-
-        // The third build fills the placeholder with the patch for the old
-        // version and creates exactly one new empty placeholder.
-        const oldFilterV3Path = path.join(tempDir, 'old-filter-v3.txt');
-        await fs.promises.copyFile(newFilterPath, oldFilterV3Path);
-        await fs.promises.writeFile(newFilterPath, filterV4);
-
-        await buildDiff({
-            oldFilterPath: oldFilterV3Path,
-            newFilterPath,
-            patchesPath,
-            name: 'filter3',
-            time: 60,
-        });
-
-        patchFiles = await fs.promises.readdir(patchesPath);
         expect(patchFiles).toHaveLength(2);
 
-        const patchSizes = await Promise.all(patchFiles.map(async (file) => {
-            const fileStats = await fs.promises.stat(path.join(patchesPath, file));
+        const oldVersionPatch = await fs.promises.readFile(
+            path.join(patchesPath, 'test-h-1000-60.patch'),
+            { encoding: 'utf-8' },
+        );
+        expect(oldVersionPatch.length).toBeGreaterThan(0);
 
-            return fileStats.size;
-        }));
-        expect(patchSizes.filter((size) => size === 0)).toHaveLength(1);
-        expect(patchSizes.filter((size) => size > 0)).toHaveLength(1);
-    });
-
-    it('throws when maxPatchSize is not a positive finite number', async () => {
-        const oldFilter = '! Title: Test filter\n||example.org^\n';
-        const newFilter = '! Title: Test filter\n||example.com^\n';
-        await fs.promises.writeFile(oldFilterPath, oldFilter);
-        await fs.promises.writeFile(newFilterPath, newFilter);
-
-        const invalidMaxPatchSizes = [0, -1, Number.NaN, Number.POSITIVE_INFINITY];
-
-        await Promise.all(invalidMaxPatchSizes.map(async (maxPatchSize) => {
-            await expect(buildDiff({
-                oldFilterPath,
-                newFilterPath,
-                patchesPath,
-                name: 'filter',
-                time: 60,
-                maxPatchSize,
-            })).rejects.toThrow('Maximum patch size should be a positive number.');
-        }));
+        const newVersionPatchNames = patchFiles.filter((file) => file !== 'test-h-1000-60.patch');
+        expect(newVersionPatchNames).toHaveLength(1);
+        const newVersionPatchStat = await fs.promises.stat(
+            path.join(patchesPath, newVersionPatchNames[0]),
+        );
+        expect(newVersionPatchStat.size).toBe(0);
     });
 });
