@@ -458,9 +458,9 @@ export const buildDiff = async (params: BuildDiffParams): Promise<void> => {
         verbose = false,
     } = params;
 
-    // Validate the limit here as well as in the CLI: the default above only
-    // covers `undefined`, and a non-finite or non-positive value would
-    // otherwise silently skip every patch or disable the limit.
+    // Validate the limit here: the default above only covers `undefined`, and
+    // a non-finite or non-positive value would otherwise silently skip every
+    // patch or disable the limit.
     if (!Number.isFinite(maxPatchSize) || maxPatchSize <= 0) {
         throw new Error('Maximum patch size should be a positive number.');
     }
