@@ -97,6 +97,10 @@ const AcceptableHttpStatusCodes = {
 // eslint-disable-next-line @typescript-eslint/no-redeclare
 type AcceptableHttpStatusCodes = typeof AcceptableHttpStatusCodes[keyof typeof AcceptableHttpStatusCodes];
 
+// Number of lines inserted per `splice` call. Spreading a larger number of
+// lines at once overflows the V8 call stack.
+const INSERT_CHUNK_SIZE = 10000;
+
 /**
  * Parses an RCS (Revision Control System) operation string into an object
  * containing operation details.
@@ -192,12 +196,20 @@ export const applyRcsPatch = (
             }
             index += stringsToAdd.length;
 
-            if (startIndexWithOffset < 0) {
-                lines.unshift(...stringsToAdd);
-            } else if (startIndexWithOffset > lines.length) {
-                lines.push(...stringsToAdd);
-            } else {
-                lines.splice(startIndexWithOffset + 1, 0, ...stringsToAdd);
+            // NOTE: Insert in chunks instead of spreading all `stringsToAdd`
+            // at once: spreading ~100K+ lines overflows the V8 call stack
+            // ("Maximum call stack size exceeded"). Native `splice` is used
+            // instead of rebuilding the array in a JS loop to keep the
+            // insertion speed. The index is clamped to zero because
+            // `startIndexWithOffset` can drop below -1 after deletions at the
+            // beginning of the filter.
+            const insertIndex = Math.max(startIndexWithOffset + 1, 0);
+            for (let i = 0; i < stringsToAdd.length; i += INSERT_CHUNK_SIZE) {
+                lines.splice(
+                    insertIndex + i,
+                    0,
+                    ...stringsToAdd.slice(i, i + INSERT_CHUNK_SIZE),
+                );
             }
 
             currentOffset += numberOfLines;

@@ -78,6 +78,40 @@ describe('check diff-updater', () => {
 
             expect(updatedFilter).toStrictEqual(newFilter);
         });
+
+        it('applies a patch with a huge add block without stack overflow', () => {
+            const addedLinesCount = 500_000;
+            const oldFilterLines = ['! Title: Huge patch test\n'];
+            const patchLines = [`a1 ${addedLinesCount}\n`];
+
+            for (let i = 0; i < addedLinesCount; i += 1) {
+                patchLines.push(`||example-${i}.org^\n`);
+            }
+
+            const updatedFilter = applyRcsPatch(oldFilterLines, patchLines);
+
+            const updatedLines = splitByLines(updatedFilter);
+            expect(updatedLines).toHaveLength(addedLinesCount + 1);
+            expect(updatedLines[addedLinesCount]).toStrictEqual('||example-499999.org^\n');
+        });
+
+        it('applies a huge add block at the end of the filter', () => {
+            const addedLinesCount = 300_000;
+            const oldFilterLines: string[] = [];
+            for (let i = 0; i < 10; i += 1) {
+                oldFilterLines.push(`line-${i}\n`);
+            }
+
+            const patchLines = [`a11 ${addedLinesCount}`];
+            for (let i = 0; i < addedLinesCount; i += 1) {
+                patchLines.push(`||example-${i}.org^\n`);
+            }
+
+            const updatedLines = splitByLines(applyRcsPatch(oldFilterLines, patchLines));
+
+            expect(updatedLines).toHaveLength(10 + addedLinesCount);
+            expect(updatedLines[10 + addedLinesCount - 1]).toStrictEqual('||example-299999.org^\n');
+        });
     });
 
     describe('applyPatch', () => {

@@ -24,6 +24,8 @@ import { getTempFilePaths } from '../common/get-temp-file-paths';
 import { writeToTempFiles, deleteTempFiles } from '../common/temp-files-utils';
 
 const DEFAULT_PATCH_TTL_SECONDS = 60 * 60 * 24 * 7;
+// Default maximum patch size in bytes (1 MB).
+const DEFAULT_MAX_PATCH_SIZE = 1024 * 1024;
 
 let log: (message: string) => void;
 
@@ -81,6 +83,16 @@ export interface BuildDiffParams {
      * has expired.
      */
     deleteOlderThanSec?: number;
+
+    /**
+     * An optional maximum size of the generated patch in *bytes*.
+     * If the generated patch exceeds this size, it will not be created:
+     * the new filter will be published without the `Diff-Path` tag, so
+     * clients will download the full filter instead of a patch, and stale
+     * empty placeholder patches will be deleted from the patches folder.
+     * By default, it is `1048576` (1 MB).
+     */
+    maxPatchSize?: number;
 
     /**
      * Verbose mode.
@@ -182,6 +194,45 @@ const deleteOutdatedPatches = async (
 };
 
 /**
+ * Scans `absolutePatchesPath` for empty (zero-byte) `*.${PATCH_EXTENSION}`
+ * files and deletes them.
+ *
+ * An empty patch is a placeholder for a version of a filter whose patch has
+ * not been created yet. Stale placeholders must be deleted when their patch
+ * will never be created, so that the patches folder contains at most one
+ * empty patch — the placeholder for the latest version of the filter.
+ *
+ * @param absolutePatchesPath Directory for scan.
+ *
+ * @see {@link PATCH_EXTENSION}
+ */
+const deleteEmptyPatches = async (absolutePatchesPath: string): Promise<void> => {
+    const files = await fs.promises.readdir(absolutePatchesPath);
+    const tasksToDeleteFiles: Promise<void>[] = [];
+    for (const file of files) {
+        if (!file.endsWith(PATCH_EXTENSION)) {
+            continue;
+        }
+
+        const filePath = path.join(absolutePatchesPath, file);
+
+        // eslint-disable-next-line no-await-in-loop
+        const { size } = await fs.promises.stat(filePath);
+        if (size === 0) {
+            log(`Deleting empty patch "${file}".`);
+            // eslint-disable-next-line no-await-in-loop
+            tasksToDeleteFiles.push(fs.promises.rm(filePath));
+        }
+    }
+
+    await Promise.all(tasksToDeleteFiles);
+
+    if (tasksToDeleteFiles.length > 0) {
+        log(`Deleted ${tasksToDeleteFiles.length} empty patches from "${absolutePatchesPath}".`);
+    }
+};
+
+/**
  * Checks if the provided file content contains a checksum tag within its first 200 characters.
  * This approach is selected to exclude parsing checksums from included filters.
  *
@@ -198,16 +249,19 @@ export const hasChecksum = (file: string): boolean => {
 
 /**
  * Updates the 'Diff-Path' tag and optionally recalculates and adds a new
- * checksum tag in a provided array of filter lines.
+ * checksum tag in a provided array of filter lines. If `diffPathTagValue`
+ * is `null`, the 'Diff-Path' tag is removed instead of updated, and the
+ * checksum is recalculated so that it stays valid.
  *
  * @param filterContent Filter content that needs to be updated.
- * @param diffPathTagValue The new value to be set for the 'Diff-Path' tag.
+ * @param diffPathTagValue The new value to be set for the 'Diff-Path' tag,
+ * or `null` to remove the tag.
  *
  * @returns Updated filter content.
  */
 export const updateTags = (
     filterContent: string,
-    diffPathTagValue: string,
+    diffPathTagValue: string | null,
 ): string => {
     // Split the content of the filters into lines.
     let newFileSplitted = splitByLines(filterContent);
@@ -223,8 +277,10 @@ export const updateTags = (
 
     const lineEnding = newFileSplitted[0].endsWith('\r\n') ? '\r\n' : '\n';
 
-    const diffPath = createTag(DIFF_PATH_TAG, diffPathTagValue, lineEnding);
-    newFileSplitted.unshift(diffPath);
+    if (diffPathTagValue !== null) {
+        const diffPath = createTag(DIFF_PATH_TAG, diffPathTagValue, lineEnding);
+        newFileSplitted.unshift(diffPath);
+    }
 
     if (userAgent !== undefined) {
         newFileSplitted.unshift(userAgent);
@@ -394,6 +450,7 @@ export const updateFileAndCreatePatch = async (
  * @param params The parameters including paths, resolution, and other settings
  * for diff generation.
  *
+ * @throws Error if `maxPatchSize` is not a positive finite number.
  * @throws Error if the generated patch fails self-validation: the patch cannot
  * be applied to the old filter or its result differs from the new filter.
  *
@@ -409,8 +466,16 @@ export const buildDiff = async (params: BuildDiffParams): Promise<void> => {
         resolution = Resolution.Hours,
         checksum: checksumFlag = false,
         deleteOlderThanSec = DEFAULT_PATCH_TTL_SECONDS,
+        maxPatchSize = DEFAULT_MAX_PATCH_SIZE,
         verbose = false,
     } = params;
+
+    // Validate the limit here: the default above only covers `undefined`, and
+    // a non-finite or non-positive value would otherwise silently skip every
+    // patch or disable the limit.
+    if (!Number.isFinite(maxPatchSize) || maxPatchSize <= 0) {
+        throw new Error('Maximum patch size should be a positive number.');
+    }
 
     log = createLogger(verbose);
 
@@ -489,6 +554,28 @@ export const buildDiff = async (params: BuildDiffParams): Promise<void> => {
         oldFilePatchName,
     );
 
+    const patchSize = Buffer.byteLength(patch, 'utf-8');
+
+    if (patchSize > maxPatchSize) {
+        log(`The patch size (${patchSize} bytes) exceeds the maximum allowed patch size (${maxPatchSize} bytes).`);
+        log('The patch will not be created, and the new filter will be published without the "Diff-Path" tag.');
+        log('Clients will download the full filter instead of applying a patch.');
+
+        // If the new filter already contains a 'Diff-Path' tag, it may point
+        // to a placeholder that is about to be deleted. Publishing the filter
+        // with such a tag would make the next build write a patch for the
+        // wrong base under that path, so remove the tag and keep the checksum
+        // valid.
+        if (parseTag(DIFF_PATH_TAG, splitByLines(newFile))) {
+            const newFileWithoutDiffPath = updateTags(newFile, null);
+            await fs.promises.writeFile(absoluteNewListPath, newFileWithoutDiffPath);
+        }
+
+        await deleteEmptyPatches(absolutePatchesPath);
+
+        return;
+    }
+
     // Note: the new filter and patch files are only written after this check,
     // so a failed validation leaves the previous filter content untouched:
     // no updated 'Diff-Path' tag and no placeholder patch. Expired patches
@@ -504,6 +591,14 @@ export const buildDiff = async (params: BuildDiffParams): Promise<void> => {
     // Write the updated content to the new filter with an updated 'Diff-Path' and 'Checksum'.
     await fs.promises.writeFile(absoluteNewListPath, newFileWithUpdatedTags);
     log(`Updated 'Diff-Path' and 'Checksum' tags in the new filter at "${absoluteNewListPath}".`);
+
+    // If 'Diff-Path' is not found in the old filter, a patch for the old file
+    // cannot be created, and empty placeholders left by previous failed builds
+    // will never be filled. Delete them before creating a new placeholder so
+    // that the patches folder contains exactly one empty patch.
+    if (!oldFilePatchName) {
+        await deleteEmptyPatches(absolutePatchesPath);
+    }
 
     // Create an empty patch for the future version if it doesn't exist.
     const emptyPatchForNewVersion = path.join(absolutePatchesPath, newFilePatchName);
