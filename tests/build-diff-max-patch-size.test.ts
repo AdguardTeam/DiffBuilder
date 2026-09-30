@@ -2,6 +2,7 @@ import path from 'path';
 import fs from 'fs';
 import os from 'os';
 
+import { calculateChecksumMD5 } from '../src/common/calculate-checksum';
 import { DIFF_PATH_TAG } from '../src/common/constants';
 import { splitByLines } from '../src/common/split-by-lines';
 import { buildDiff } from '../src/diff-builder/build';
@@ -159,6 +160,64 @@ describe('buildDiff', () => {
         }));
         expect(patchSizes.filter((size) => size === 0)).toHaveLength(1);
         expect(patchSizes.filter((size) => size > 0)).toHaveLength(1);
+    });
+
+    it('removes a stale Diff-Path tag from a tagged new filter and recovers on later builds', async () => {
+        const filterV1 = '! Title: Test filter\n! Diff-Path: patches/old.patch\n||example.org^\n';
+        // The new filter still carries the stale `Diff-Path` tag and checksum
+        // of the previous version.
+        const filterV2 = '! Checksum: stale\n! Title: Test filter\n! Diff-Path: patches/old.patch\n||example.com^\n';
+        const filterV3 = '! Title: Test filter\n||example.net^\n';
+
+        await fs.promises.writeFile(oldFilterPath, filterV1);
+        await fs.promises.writeFile(newFilterPath, filterV2);
+        await fs.promises.writeFile(path.join(patchesPath, 'old.patch'), '');
+
+        // The first build skips the patch because it exceeds maxPatchSize.
+        await buildDiff({
+            oldFilterPath,
+            newFilterPath,
+            patchesPath,
+            name: 'filter1',
+            time: 60,
+            maxPatchSize: 1,
+        });
+
+        // The stale `Diff-Path` tag is removed, so nothing points to the
+        // deleted placeholder, and the checksum is recalculated.
+        expect(await readDiffPathTag(newFilterPath)).toBeNull();
+
+        const updatedNewFilter = await fs.promises.readFile(newFilterPath, 'utf-8');
+        const expectedChecksum = calculateChecksumMD5('! Title: Test filter\n||example.com^\n');
+        expect(updatedNewFilter).toBe(
+            `! Checksum: ${expectedChecksum}\n! Title: Test filter\n||example.com^\n`,
+        );
+
+        expect(await fs.promises.readdir(patchesPath)).toEqual([]);
+
+        // The next build bootstraps diff updates for the filter that has no
+        // Diff-Path: it adds a fresh tag and creates one empty placeholder.
+        const oldFilterV2Path = path.join(tempDir, 'old-filter-v2.txt');
+        await fs.promises.copyFile(newFilterPath, oldFilterV2Path);
+        await fs.promises.writeFile(newFilterPath, filterV3);
+
+        await buildDiff({
+            oldFilterPath: oldFilterV2Path,
+            newFilterPath,
+            patchesPath,
+            name: 'filter2',
+            time: 60,
+        });
+
+        const diffPath = await readDiffPathTag(newFilterPath);
+        expect(diffPath).not.toBeNull();
+
+        const patchFiles = await fs.promises.readdir(patchesPath);
+        expect(patchFiles).toHaveLength(1);
+        expect(diffPath).toBe(path.join('patches', patchFiles[0]));
+
+        const placeholderStats = await fs.promises.stat(path.join(patchesPath, patchFiles[0]));
+        expect(placeholderStats.size).toBe(0);
     });
 
     it('throws when maxPatchSize is not a positive finite number', async () => {

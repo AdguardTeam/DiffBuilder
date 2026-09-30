@@ -205,10 +205,8 @@ const deleteOutdatedPatches = async (
  * @param absolutePatchesPath Directory for scan.
  *
  * @see {@link PATCH_EXTENSION}
- *
- * @returns Returns number of deleted empty patches.
  */
-const deleteEmptyPatches = async (absolutePatchesPath: string): Promise<number> => {
+const deleteEmptyPatches = async (absolutePatchesPath: string): Promise<void> => {
     const files = await fs.promises.readdir(absolutePatchesPath);
     const tasksToDeleteFiles: Promise<void>[] = [];
     for (const file of files) {
@@ -227,13 +225,11 @@ const deleteEmptyPatches = async (absolutePatchesPath: string): Promise<number> 
         }
     }
 
-    const deleted = await Promise.all(tasksToDeleteFiles);
+    await Promise.all(tasksToDeleteFiles);
 
-    if (deleted.length > 0) {
-        log(`Deleted ${deleted.length} empty patches from "${absolutePatchesPath}".`);
+    if (tasksToDeleteFiles.length > 0) {
+        log(`Deleted ${tasksToDeleteFiles.length} empty patches from "${absolutePatchesPath}".`);
     }
-
-    return deleted.length;
 };
 
 /**
@@ -253,16 +249,19 @@ export const hasChecksum = (file: string): boolean => {
 
 /**
  * Updates the 'Diff-Path' tag and optionally recalculates and adds a new
- * checksum tag in a provided array of filter lines.
+ * checksum tag in a provided array of filter lines. If `diffPathTagValue`
+ * is `null`, the 'Diff-Path' tag is removed instead of updated, and the
+ * checksum is recalculated so that it stays valid.
  *
  * @param filterContent Filter content that needs to be updated.
- * @param diffPathTagValue The new value to be set for the 'Diff-Path' tag.
+ * @param diffPathTagValue The new value to be set for the 'Diff-Path' tag,
+ * or `null` to remove the tag.
  *
  * @returns Updated filter content.
  */
 export const updateTags = (
     filterContent: string,
-    diffPathTagValue: string,
+    diffPathTagValue: string | null,
 ): string => {
     // Split the content of the filters into lines.
     let newFileSplitted = splitByLines(filterContent);
@@ -278,8 +277,10 @@ export const updateTags = (
 
     const lineEnding = newFileSplitted[0].endsWith('\r\n') ? '\r\n' : '\n';
 
-    const diffPath = createTag(DIFF_PATH_TAG, diffPathTagValue, lineEnding);
-    newFileSplitted.unshift(diffPath);
+    if (diffPathTagValue !== null) {
+        const diffPath = createTag(DIFF_PATH_TAG, diffPathTagValue, lineEnding);
+        newFileSplitted.unshift(diffPath);
+    }
 
     if (userAgent !== undefined) {
         newFileSplitted.unshift(userAgent);
@@ -559,6 +560,16 @@ export const buildDiff = async (params: BuildDiffParams): Promise<void> => {
         log(`The patch size (${patchSize} bytes) exceeds the maximum allowed patch size (${maxPatchSize} bytes).`);
         log('The patch will not be created, and the new filter will be published without the "Diff-Path" tag.');
         log('Clients will download the full filter instead of applying a patch.');
+
+        // If the new filter already contains a 'Diff-Path' tag, it may point
+        // to a placeholder that is about to be deleted. Publishing the filter
+        // with such a tag would make the next build write a patch for the
+        // wrong base under that path, so remove the tag and keep the checksum
+        // valid.
+        if (parseTag(DIFF_PATH_TAG, splitByLines(newFile))) {
+            const newFileWithoutDiffPath = updateTags(newFile, null);
+            await fs.promises.writeFile(absoluteNewListPath, newFileWithoutDiffPath);
+        }
 
         await deleteEmptyPatches(absolutePatchesPath);
 
