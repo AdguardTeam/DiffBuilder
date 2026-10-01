@@ -9,16 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `maxPatchSize` parameter for `DiffBuilder.buildDiff` and the
-  `--max-patch-size <bytes>` CLI option to limit the size of generated
-  patches. Default: `1048576` (1 MB).
-- Export `applyRcsPatch` and `validatePatch` so consumers can validate patches against local content.
-
 ### Changed
 
 ### Deprecated
 
 ### Removed
+
+### Fixed
+
+### Security
+
+## [1.1.8] - 2026-10-01
+
+### Added
+
+- `maxPatchSize` parameter for `DiffBuilder.buildDiff` and the
+  `--max-patch-size <bytes>` CLI option to limit the size of generated
+  patches. Default: `1048576` (1 MB).
+- Export `applyRcsPatch` and `validatePatch` so consumers can validate patches against local content.
 
 ### Fixed
 
@@ -34,8 +42,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   self-validation instead of silently returning. This makes CI fail
   instead of committing and publishing a broken patch.
 
-### Security
-
 ## [1.1.7] - 2026-06-29
 
 ## [1.1.6] - 2026-06-19
@@ -50,7 +56,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `moduleResolution: bundler | node16 | nodenext`.
   Added `"types"` condition to all `exports` map entries in `package.json`.
 
-[Unreleased]: https://github.com/AdguardTeam/DiffBuilder/compare/v1.1.7...HEAD
+[Unreleased]: https://github.com/AdguardTeam/DiffBuilder/compare/v1.1.8...HEAD
+[1.1.8]: https://github.com/AdguardTeam/DiffBuilder/compare/v1.1.7...v1.1.8
 [1.1.7]: https://github.com/AdguardTeam/DiffBuilder/compare/v1.1.6...v1.1.7
 [1.1.6]: https://github.com/AdguardTeam/DiffBuilder/compare/v1.1.5...v1.1.6
 [1.1.5]: https://github.com/AdguardTeam/DiffBuilder/compare/v1.1.4...v1.1.5
