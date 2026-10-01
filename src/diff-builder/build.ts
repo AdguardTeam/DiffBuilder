@@ -27,7 +27,9 @@ const DEFAULT_PATCH_TTL_SECONDS = 60 * 60 * 24 * 7;
 // Default maximum patch size in bytes (1 MB).
 const DEFAULT_MAX_PATCH_SIZE = 1024 * 1024;
 
-let log: (message: string) => void;
+// Default to a no-op so that `validatePatch` can be called standalone, before
+// `buildDiff` assigns the real logger.
+let log: (message: string) => void = () => undefined;
 
 export const PATCH_EXTENSION = '.patch';
 
