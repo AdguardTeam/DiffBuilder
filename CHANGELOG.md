@@ -30,6 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `validatePatch` no longer throws `TypeError: log is not a function` when it is
+  called outside `DiffBuilder.buildDiff`: the module logger defaults to a no-op,
+  so an invalid patch returns `{ valid: false, error }` as documented.
 - `DiffBuilder.buildDiff` no longer leaves the patches folder in a broken
   state when a patch cannot be created: oversized patches are skipped and
   the new filter is published without the `Diff-Path` tag, stale empty

@@ -33,4 +33,25 @@ describe('validatePatch', () => {
 
         expect(res).toStrictEqual({ valid: true });
     });
+
+    it('returns the apply error instead of throwing when the patch cannot be parsed', () => {
+        const res = validatePatch(FILTER_1_V_1_0_0, FILTER_1_V_1_0_1, 'x1 1\n');
+
+        expect(res.valid).toBe(false);
+        if (!res.valid) {
+            expect(res.error).toBeInstanceOf(Error);
+            expect((res.error as Error).message.trim()).toBe('Operation is not valid: cannot parse type: x1 1');
+        }
+    });
+
+    it('returns the apply error instead of throwing when the checksum does not match', () => {
+        const patch = `diff checksum:${'0'.repeat(40)} lines:4\n${PATCH_1_1_0_0}`;
+        const res = validatePatch(FILTER_1_V_1_0_0, FILTER_1_V_1_0_1, patch);
+
+        expect(res.valid).toBe(false);
+        if (!res.valid) {
+            expect(res.error).toBeInstanceOf(Error);
+            expect((res.error as Error).message).toBe('Checksums are not equal.');
+        }
+    });
 });
