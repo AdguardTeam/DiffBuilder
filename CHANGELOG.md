@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `maxPatchSize` parameter for `DiffBuilder.buildDiff` and the
   `--max-patch-size <bytes>` CLI option to limit the size of generated
   patches. Default: `1048576` (1 MB).
+- Export `applyRcsPatch` and `validatePatch` so consumers can validate patches against local content.
 
 ### Changed
 
