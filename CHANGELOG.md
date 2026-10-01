@@ -19,6 +19,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+## [1.1.9] - 2026-10-01
+
+### Fixed
+
+- `validatePatch` no longer throws `TypeError: log is not a function` when it is
+  called outside `DiffBuilder.buildDiff`: the module logger defaults to a no-op,
+  so an invalid patch returns `{ valid: false, error }` as documented.
+
 ## [1.1.8] - 2026-10-01
 
 ### Added
@@ -30,9 +38,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `validatePatch` no longer throws `TypeError: log is not a function` when it is
-  called outside `DiffBuilder.buildDiff`: the module logger defaults to a no-op,
-  so an invalid patch returns `{ valid: false, error }` as documented.
 - `DiffBuilder.buildDiff` no longer leaves the patches folder in a broken
   state when a patch cannot be created: oversized patches are skipped and
   the new filter is published without the `Diff-Path` tag, stale empty
@@ -59,7 +64,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `moduleResolution: bundler | node16 | nodenext`.
   Added `"types"` condition to all `exports` map entries in `package.json`.
 
-[Unreleased]: https://github.com/AdguardTeam/DiffBuilder/compare/v1.1.8...HEAD
+[Unreleased]: https://github.com/AdguardTeam/DiffBuilder/compare/v1.1.9...HEAD
+[1.1.9]: https://github.com/AdguardTeam/DiffBuilder/compare/v1.1.8...v1.1.9
 [1.1.8]: https://github.com/AdguardTeam/DiffBuilder/compare/v1.1.7...v1.1.8
 [1.1.7]: https://github.com/AdguardTeam/DiffBuilder/compare/v1.1.6...v1.1.7
 [1.1.6]: https://github.com/AdguardTeam/DiffBuilder/compare/v1.1.5...v1.1.6
