@@ -76,7 +76,7 @@ applying the patch and rejects it if the hash does not match.
 
 **Runtime requirements:**
 
-- [Node.js] v20 or higher (for builder and CLI; the updater also runs in
+- [Node.js] v22.23.5 or higher (for builder and CLI; the updater also runs in
   browsers).
 - Unix `diff` utility (required by the builder at runtime):
     - macOS — available by default, or via `xcode-select --install`.

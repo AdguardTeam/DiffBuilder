@@ -54,7 +54,7 @@
         "diff-builder": "dist/bin/diff-builder"
     },
     "engines": {
-        "node": ">=20"
+        "node": ">=22.23.5"
     },
     "scripts": {
         "prebuild": "rimraf dist && pnpm build:types",

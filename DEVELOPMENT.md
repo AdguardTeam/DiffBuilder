@@ -25,12 +25,12 @@ project locally, and contribute code to AdGuard Diff Builder.
 
 Install the following tools before working on the project:
 
-| Tool                           | Version    | Notes                                               |
-| ------------------------------ | ---------- | --------------------------------------------------- |
-| [Node.js](https://nodejs.org/) | >= 20      | The `engines` field in `package.json` enforces this |
-| [pnpm](https://pnpm.io/)       | 10.7.1     | Install with `npm install -g pnpm@10.7.1`           |
-| [Git](https://git-scm.com/)    | any recent | Required for cloning and version control            |
-| Unix `diff` utility            | any        | Required at runtime by the builder (see below)      |
+| Tool                           | Version    | Notes                                                      |
+| ------------------------------ | ---------- | ---------------------------------------------------------- |
+| [Node.js](https://nodejs.org/) | >= 22.23.5 | The `engines` field in `package.json` enforces this        |
+| [pnpm](https://pnpm.io/)       | 10.7.1     | Install with `npm install -g pnpm@10.7.1`                  |
+| [Git](https://git-scm.com/)    | any recent | Required for cloning and version control                   |
+| Unix `diff` utility            | any        | Required at runtime by the builder (see below)             |
 
 ### Unix `diff` utility
 
@@ -249,7 +249,7 @@ pnpm install
 
 ### Node.js version mismatch
 
-The project requires Node.js >= 20. Check your version:
+The project requires Node.js >= 22.23.5. Check your version:
 
 ```bash
 node --version

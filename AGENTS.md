@@ -24,7 +24,7 @@ The project ships as:
 
 | Field                 | Value                                                     |
 | --------------------- | --------------------------------------------------------- |
-| Language / Version    | TypeScript ~5.2, targeting ESNext; Node.js >= 20          |
+| Language / Version    | TypeScript ~5.2, targeting ESNext; Node.js >= 22.23.5     |
 | Package Manager       | pnpm 10.7.1                                               |
 | Bundler               | Rollup 4 (CJS + ESM outputs)                              |
 | Primary Dependencies  | `commander` (CLI), `crypto-js` (checksums)                |
